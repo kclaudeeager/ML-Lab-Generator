@@ -4,6 +4,10 @@ import swaggerUi from 'swagger-ui-express';
 import { MLLabGenerator } from './server.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import fs from 'fs';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import type { Request, Response, NextFunction } from 'express';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -362,8 +366,107 @@ const swaggerSpec = {
           '500': { description: 'Internal server error' }
         }
       }
-    }
-  }
+    },
+    '/api/save_lab': {
+      post: {
+        summary: 'Save a new lab',
+        description: 'Save a generated lab with metadata. Requires HTTP Basic Auth.',
+        security: [{ basicAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  labType: { type: 'string', description: 'Lab type (interactive, gamified, project-based)' },
+                  requirements: { type: 'string', description: 'Lab requirements' },
+                  lessonTopic: { type: 'string', description: 'Lesson topic' },
+                  audience: { type: 'string', description: 'Target audience' },
+                  duration: { type: 'string', description: 'Lab duration' },
+                  content: { type: 'string', description: 'Lab content' },
+                },
+                required: ['labType', 'requirements', 'lessonTopic', 'audience', 'duration', 'content'],
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Lab saved',
+            content: {
+              'application/json': {
+                schema: { type: 'object', properties: { success: { type: 'boolean' }, lab: { type: 'object' } } },
+              },
+            },
+          },
+          '401': { description: 'Unauthorized' },
+          '400': { description: 'Missing required fields' },
+        },
+      },
+    },
+    '/api/labs': {
+      get: {
+        summary: 'List all saved labs',
+        description: 'Get all saved labs. Requires HTTP Basic Auth.',
+        security: [{ basicAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Array of labs',
+            content: {
+              'application/json': {
+                schema: { type: 'array', items: { type: 'object' } },
+              },
+            },
+          },
+          '401': { description: 'Unauthorized' },
+        },
+      },
+    },
+    '/api/labs/{id}': {
+      get: {
+        summary: 'Get a single lab',
+        description: 'Retrieve a lab by ID. Requires HTTP Basic Auth.',
+        security: [{ basicAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Lab object',
+            content: {
+              'application/json': {
+                schema: { type: 'object' },
+              },
+            },
+          },
+          '404': { description: 'Lab not found' },
+          '401': { description: 'Unauthorized' },
+        },
+      },
+      delete: {
+        summary: 'Delete a lab',
+        description: 'Delete a lab by ID. Requires HTTP Basic Auth.',
+        security: [{ basicAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': { description: 'Lab deleted' },
+          '404': { description: 'Lab not found' },
+          '401': { description: 'Unauthorized' },
+        },
+      },
+    },
+  },
+  components: {
+    securitySchemes: {
+      basicAuth: {
+        type: 'http',
+        scheme: 'basic',
+      },
+    },
+  },
 };
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
@@ -372,6 +475,89 @@ app.use(express.json());
 
 // Create a single instance of the lab generator
 const generator = new MLLabGenerator();
+
+// --- LAB STORAGE SETUP ---
+const LABS_FILE = path.join(__dirname, 'labs.json');
+type Lab = {
+  id: string;
+  labType: string;
+  requirements: string;
+  lessonTopic: string;
+  audience: string;
+  duration: string;
+  content: string;
+  createdAt: string;
+  author: string;
+};
+function readLabs(): Lab[] {
+  if (!fs.existsSync(LABS_FILE)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(LABS_FILE, 'utf-8'));
+  } catch {
+    return [];
+  }
+}
+function writeLabs(labs: Lab[]) {
+  fs.writeFileSync(LABS_FILE, JSON.stringify(labs, null, 2));
+}
+
+// --- AUTH MIDDLEWARE ---
+function basicAuth(req: Request, res: Response, next: NextFunction) {
+  const auth = req.headers['authorization'];
+  if (!auth || !auth.startsWith('Basic ')) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Labs"');
+    return res.status(401).send('Authentication required');
+  }
+  const [user, pass] = Buffer.from(auth.split(' ')[1], 'base64').toString().split(':');
+  if (user !== 'admin' || pass !== 'admin') {
+    return res.status(403).send('Forbidden');
+  }
+  next();
+}
+
+// --- LAB ENDPOINTS ---
+app.post('/api/save_lab', basicAuth, (req: Request, res: Response) => {
+  const { labType, requirements, lessonTopic, audience, duration, content } = req.body;
+  if (!labType || !requirements || !lessonTopic || !audience || !duration || !content) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  const labs = readLabs();
+  const lab: Lab = {
+    id: uuidv4(),
+    labType,
+    requirements,
+    lessonTopic,
+    audience,
+    duration,
+    content,
+    createdAt: new Date().toISOString(),
+    author: 'admin',
+  };
+  labs.push(lab);
+  writeLabs(labs);
+  res.json({ success: true, lab });
+});
+
+app.get('/api/labs', basicAuth, (req: Request, res: Response) => {
+  const labs = readLabs();
+  res.json(labs);
+});
+
+app.get('/api/labs/:id', basicAuth, (req: Request, res: Response) => {
+  const labs = readLabs();
+  const lab = labs.find((l: Lab) => l.id === req.params.id);
+  if (!lab) return res.status(404).json({ error: 'Lab not found' });
+  res.json(lab);
+});
+
+app.delete('/api/labs/:id', basicAuth, (req: Request, res: Response) => {
+  let labs = readLabs();
+  const idx = labs.findIndex((l: Lab) => l.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Lab not found' });
+  const [deleted] = labs.splice(idx, 1);
+  writeLabs(labs);
+  res.json({ success: true, deleted });
+});
 
 app.post('/api/read_requirements', async (req, res) => {
   try {
