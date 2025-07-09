@@ -1,0 +1,205 @@
+{
+  "name": "ML Lab Generator MCP Server",
+  "version": "1.0.0",
+  "description": "Complete setup for ML lab generation MCP server",
+  
+  "claude_desktop_config": {
+    "mcpServers": {
+      "ml-lab-generator": {
+        "command": "node",
+        "args": ["./server.js"],
+        "cwd": "/path/to/ml-lab-generator",
+        "env": {
+          "GROQ_API_KEY": "gsk_your_api_key_here"
+        }
+      }
+    }
+  },
+  
+  "environment_variables": {
+    "required": [
+      "GROQ_API_KEY"
+    ],
+    "optional": [
+      "NODE_ENV",
+      "LOG_LEVEL",
+      "CACHE_TTL"
+    ]
+  },
+  
+  "groq_models": {
+    "primary": "llama3-70b-8192",
+    "secondary": "llama3-8b-8192",
+    "usage": {
+      "llama3-70b-8192": [
+        "generate_interactive_lab",
+        "generate_gamified_lab", 
+        "generate_project_based_lab",
+        "review_lab_quality",
+        "test_lab_effectiveness",
+        "generate_assessment_rubric",
+        "optimize_lab_content"
+      ],
+      "llama3-8b-8192": [
+        "read_requirements",
+        "generate_lab_outline"
+      ]
+    }
+  },
+  
+  "recommended_workflow": {
+    "basic_lab": [
+      "read_requirements",
+      "generate_lab_outline", 
+      "generate_interactive_lab",
+      "review_lab_quality",
+      "optimize_lab_content"
+    ],
+    "gamified_lab": [
+      "read_requirements",
+      "generate_lab_outline",
+      "generate_interactive_lab", 
+      "generate_gamified_lab",
+      "review_lab_quality",
+      "test_lab_effectiveness",
+      "optimize_lab_content"
+    ],
+    "project_lab": [
+      "read_requirements",
+      "generate_lab_outline",
+      "generate_project_based_lab",
+      "generate_assessment_rubric",
+      "review_lab_quality",
+      "optimize_lab_content"
+    ]
+  },
+  
+  "quality_assurance": {
+    "mandatory_steps": [
+      "review_lab_quality",
+      "test_lab_effectiveness"
+    ],
+    "recommended_criteria": [
+      "clarity",
+      "engagement", 
+      "educational_value",
+      "technical_accuracy",
+      "accessibility"
+    ],
+    "test_scenarios": [
+      "beginner_student",
+      "struggling_student",
+      "advanced_student"
+    ]
+  },
+  
+  "performance_optimization": {
+    "caching": {
+      "enabled": true,
+      "ttl": 3600,
+      "keys": [
+        "requirements_analysis",
+        "common_outlines"
+      ]
+    },
+    "rate_limiting": {
+      "enabled": true,
+      "requests_per_minute": 30
+    },
+    "model_selection": {
+      "auto_select": true,
+      "fallback_model": "llama3-8b-8192"
+    }
+  },
+  
+  "ml_topics_supported": [
+    "Linear Regression",
+    "Logistic Regression",
+    "Decision Trees",
+    "Random Forest",
+    "K-Means Clustering",
+    "K-Nearest Neighbors",
+    "Support Vector Machines",
+    "Neural Networks",
+    "Deep Learning Basics",
+    "Natural Language Processing",
+    "Computer Vision",
+    "Time Series Analysis",
+    "Ensemble Methods",
+    "Feature Engineering", 
+    "Model Evaluation",
+    "Cross-Validation",
+    "Bias and Variance",
+    "Overfitting and Underfitting",
+    "Data Preprocessing",
+    "Dimensionality Reduction"
+  ],
+  
+  "customization_options": {
+    "target_audiences": [
+      "complete beginners",
+      "programming beginners",
+      "math/stats background",
+      "professionals transitioning"
+    ],
+    "lab_durations": [
+      "30 minutes",
+      "1 hour", 
+      "2 hours",
+      "3 hours",
+      "multi-session"
+    ],
+    "interactivity_levels": [
+      "low",
+      "medium", 
+      "high"
+    ],
+    "assessment_types": [
+      "formative",
+      "summative",
+      "peer",
+      "self"
+    ]
+  },
+  
+  "integration_examples": {
+    "jupyter_notebook": {
+      "export_format": "ipynb",
+      "include_solutions": true,
+      "markdown_cells": true
+    },
+    "lms_integration": {
+      "canvas": "scorm_package",
+      "moodle": "backup_format", 
+      "blackboard": "content_package"
+    },
+    "version_control": {
+      "git_ready": true,
+      "branching_strategy": "topic-based"
+    }
+  },
+  
+  "monitoring": {
+    "metrics": [
+      "lab_generation_time",
+      "quality_scores",
+      "user_satisfaction",
+      "error_rates"
+    ],
+    "logging": {
+      "level": "info",
+      "format": "json",
+      "destinations": ["console", "file"]
+    }
+  },
+  
+  "backup_and_recovery": {
+    "backup_schedule": "daily",
+    "retention_period": "30_days",
+    "backup_contents": [
+      "generated_labs",
+      "user_preferences",
+      "quality_metrics"
+    ]
+  }
+}
