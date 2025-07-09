@@ -6,13 +6,6 @@ import LabExport from '../../../components/LabExport';
 import LabEditor from '../../../components/LabEditor';
 import { useState } from 'react';
 
-const sections = [
-  { key: 'output', label: 'Lab Output' },
-  { key: 'editor', label: 'Edit Lab Content' },
-  { key: 'review', label: 'Lab Review' },
-  { key: 'export', label: 'Export Lab' },
-];
-
 export default function LabsPage() {
   const [output, setOutput] = useState<string | null>(null);
   const [edited, setEdited] = useState<string | null>(null);
