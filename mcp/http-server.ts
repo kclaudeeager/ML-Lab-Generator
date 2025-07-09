@@ -24,6 +24,10 @@ const swaggerSpec = {
       url: `http://localhost:${port}`,
       description: 'Development server',
     },
+    {
+        url: 'https://ml-lab-generator-server.onrender.com',
+        description: 'Production server',
+    }
   ],
   paths: {
     '/api/read_requirements': {
