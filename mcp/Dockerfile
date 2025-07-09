@@ -25,7 +25,6 @@ RUN npm ci --omit=dev
 # Copy built files and runtime config
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/deployment_config.json ./deployment_config.json
-COPY --from=build /app/.env ./.env
 EXPOSE 3001
 
 CMD ["node", "dist/http-server.js"]
