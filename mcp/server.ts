@@ -335,12 +335,12 @@ class MLLabGenerator {
             throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
         }
       } catch (error) {
-        throw new McpError(ErrorCode.InternalError, `Error executing ${name}: ${error.message}`);
+        throw new McpError(ErrorCode.InternalError, `Error executing ${name}: ${error instanceof Error ? error.message : String(error)}`);
       }
     });
   }
 
-  async callGroq(messages, model = 'llama3-8b-8192') {
+  async callGroq(messages: any, model = 'llama3-8b-8192') {
     const completion = await groq.chat.completions.create({
       messages,
       model,
@@ -349,7 +349,7 @@ class MLLabGenerator {
     return completion.choices[0].message.content;
   }
 
-  async readRequirements(args) {
+  async readRequirements(args: any) {
     const { requirements, lesson_topic, target_audience = 'beginners', duration = '1-2 hours' } = args;
 
     const messages = [
@@ -393,7 +393,7 @@ Make your analysis specific to machine learning education for beginners.`,
     };
   }
 
-  async generateLabOutline(args) {
+  async generateLabOutline(args: any) {
     const { lesson_topic, requirements_analysis, outline_type = 'interactive' } = args;
 
     const messages = [
@@ -444,7 +444,7 @@ Focus on making the lab interactive, engaging, and suitable for beginners in mac
     };
   }
 
-  async generateInteractiveLab(args) {
+  async generateInteractiveLab(args: any) {
     const { outline, interactivity_level = 'high', include_code = true, reflection_questions = true } = args;
 
     const messages = [
@@ -497,7 +497,7 @@ Focus on making complex ML concepts accessible and engaging for beginners.`,
     };
   }
 
-  async generateGamifiedLab(args) {
+  async generateGamifiedLab(args: any) {
     const { base_lab, gamification_elements = ['points', 'badges', 'challenges'], difficulty_progression = 'linear' } = args;
 
     const messages = [
@@ -546,7 +546,7 @@ Keep the focus on machine learning concepts while making the experience fun and 
     };
   }
 
-  async generateProjectBasedLab(args) {
+  async generateProjectBasedLab(args: any) {
     const { outline, project_theme, complexity_level = 'beginner', deliverables = [] } = args;
 
     const messages = [
@@ -601,7 +601,7 @@ Ensure the project is appropriate for beginners while being challenging and enga
     };
   }
 
-  async reviewLabQuality(args) {
+  async reviewLabQuality(args: any) {
     const { lab_content, review_criteria = ['clarity', 'engagement', 'educational_value'], target_audience = 'beginners' } = args;
 
     const messages = [
@@ -653,7 +653,7 @@ Focus on how well the lab serves machine learning beginners and whether it effec
     };
   }
 
-  async testLabEffectiveness(args) {
+  async testLabEffectiveness(args: any) {
     const { lab_content, test_scenarios = ['beginner_student'], focus_areas = ['instructions_clarity'] } = args;
 
     const messages = [
@@ -711,7 +711,7 @@ Focus on practical issues that real students would encounter when working throug
     };
   }
 
-  async generateAssessmentRubric(args) {
+  async generateAssessmentRubric(args: any) {
     const { lab_content, assessment_type = 'formative', grading_scale = 'points' } = args;
 
     const messages = [
@@ -766,7 +766,7 @@ Make the rubric specific to machine learning concepts while being clear and acti
     };
   }
 
-  async optimizeLabContent(args) {
+  async optimizeLabContent(args: any) {
     const { lab_content, review_feedback, optimization_goals = ['improve_clarity'] } = args;
 
     const messages = [
@@ -819,7 +819,7 @@ Provide the optimized content in a clear, organized format that can be immediate
     };
   }
 
-  async exportLabPDF(args) {
+  async exportLabPDF(args: any) {
     const { content } = args;
     const pdfDoc = await PDFDocument.create();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -847,10 +847,10 @@ Provide the optimized content in a clear, organized format that can be immediate
     return { buffer: Buffer.from(pdfBytes) };
   }
 
-  async exportLabDOCX(args) {
+  async exportLabDOCX(args: any) {
     const { content } = args;
-    const lines = content.split('\n').filter(line => line.trim() !== '');
-    const paragraphs = lines.map(line => new Paragraph(line));
+    const lines = content.split('\n').filter((line: any) => line.trim() !== '');
+    const paragraphs = lines.map((line: any) => new Paragraph(line));
     const doc = new Document({
       sections: [{ properties: {}, children: paragraphs }]
     });
