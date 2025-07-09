@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
-import { MLLabGenerator } from './server';
+import { MLLabGenerator } from './server.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
