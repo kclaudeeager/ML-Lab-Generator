@@ -16,7 +16,7 @@ export default function LabEditor({ labContent, onUpdate }: LabEditorProps) {
     try {
       const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/api/optimize_lab_content', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Basic ' + btoa('admin:admin') },
         body: JSON.stringify({ lab_content: content, review_feedback: 'User edits', optimization_goals: ['improve_clarity', 'increase_engagement'] }),
       });
       const data = await res.json();

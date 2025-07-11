@@ -33,7 +33,7 @@ export default function LabReview({ labContent }: LabReviewProps) {
     try {
       const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/api/review_lab_quality', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Basic ' + btoa('admin:admin') },
         body: JSON.stringify({ lab_content: labContent, review_criteria: ['clarity', 'engagement', 'educational_value'], target_audience: 'beginners' }),
       });
       const data = await res.json();

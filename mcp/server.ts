@@ -1,4 +1,6 @@
-#!/usr/bin/env node
+
+
+import fetch from 'node-fetch';
 
 import 'dotenv/config';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -18,6 +20,29 @@ const groq = new Groq({
 });
 
 class MLLabGenerator {
+  // Fallback to Ollama local model if Groq fails
+  async callOllamaModel(messages: any, model = 'llama3.2:latest') {
+    const prompt = messages.map((m: any) => m.content).join('\n');
+    const response = await fetch('http://localhost:11434/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        prompt,
+        stream: false
+      }),
+    });
+    const bodyText = await response.text();
+    console.log('Ollama response status:', response.status);
+    console.log('Ollama response headers:', response.headers);
+    console.log('Ollama response body:', bodyText);
+    if (!response.ok) {
+      throw new Error(`Ollama error: ${response.status} ${bodyText}`);
+    }
+    const data = JSON.parse(bodyText);
+    return data.response || data.text || '';
+  }
+
   server: Server;
   constructor() {
     this.server = new Server(
@@ -299,7 +324,21 @@ class MLLabGenerator {
               },
               required: ['content']
             }
-          }
+          },
+          {
+            name: 'summarize_chunk',
+            description: 'Summarize a text chunk for use as context in generating a machine learning lab.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                text: {
+                  type: 'string',
+                  description: 'The text chunk to summarize.',
+                },
+              },
+              required: ['text'],
+            },
+          },
         ],
       };
     });
@@ -331,6 +370,11 @@ class MLLabGenerator {
             return await this.exportLabPDF(args);
           case 'export_lab_docx':
             return await this.exportLabDOCX(args);
+          case 'summarize_chunk':
+            if (!args || typeof (args as any).text !== 'string') {
+              throw new McpError(ErrorCode.InvalidParams, 'summarize_chunk requires a text property');
+            }
+            return await this.summarizeChunk(args as { text: string });
           default:
             throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
         }
@@ -341,12 +385,25 @@ class MLLabGenerator {
   }
 
   async callGroq(messages: any, model = 'llama3-8b-8192') {
-    const completion = await groq.chat.completions.create({
-      messages,
-      model,
-      temperature: 0.7,
-    });
-    return completion.choices[0].message.content;
+    try {
+      const completion = await groq.chat.completions.create({
+        messages,
+        model,
+        temperature: 0.7,
+      });
+      return completion.choices[0].message.content;
+    } catch (err: any) {
+      console.error('Error calling Groq:', err);
+      // Fallback on rate limit, network, or timeout error
+      const isRateLimit = err?.response?.status === 429 || (typeof err.message === 'string' && err.message.includes('rate limit'));
+      const isNetwork = err?.name === 'FetchError' || err?.code === 'ENOTFOUND' || err?.code === 'ECONNREFUSED';
+      const isTimeout = (typeof err.message === 'string' && err.message.toLowerCase().includes('timeout'));
+      if (isRateLimit || isNetwork || isTimeout || !err.response) {
+        console.warn('Groq unavailable, rate limited, or timed out. Falling back to Ollama.');
+        return await this.callOllamaModel(messages, 'llama3.2:latest');
+      }
+      throw err;
+    }
   }
 
   async readRequirements(args: any) {
@@ -856,6 +913,32 @@ Provide the optimized content in a clear, organized format that can be immediate
     });
     const buffer = await Packer.toBuffer(doc);
     return { buffer };
+  }
+
+  async summarizeChunk(args: { text: string }) {
+    if (!args || typeof args.text !== 'string') {
+      throw new Error('summarizeChunk requires an argument object with a text property');
+    }
+    const { text } = args;
+    const messages = [
+      {
+        role: 'system',
+        content: `You are an expert educational summarizer. Read the following text and extract only the most important points, learning objectives, and relevant details, in a clear and concise way. Do not include any introductory or meta language—output only the summary content itself.`,
+      },
+      {
+        role: 'user',
+        content: text,
+      },
+    ];
+    const summary = await this.callGroq(messages);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: summary,
+        },
+      ],
+    };
   }
 
   async run() {

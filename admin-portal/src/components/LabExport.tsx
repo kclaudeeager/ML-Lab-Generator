@@ -13,7 +13,7 @@ export default function LabExport({ labContent }: LabExportProps) {
     try {
       const res = await fetch('/api/export_lab', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Basic ' + btoa('admin:admin') },
         body: JSON.stringify({ content: labContent, filename: 'lab.md' }),
       });
       const blob = await res.blob();
@@ -41,7 +41,7 @@ export default function LabExport({ labContent }: LabExportProps) {
     try {
       const res = await fetch('/api/export_lab_pdf', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Basic ' + btoa('admin:admin') },
         body: JSON.stringify({ content: labContent, filename: 'lab.pdf' }),
       });
       const blob = await res.blob();
@@ -63,7 +63,7 @@ export default function LabExport({ labContent }: LabExportProps) {
     try {
       const res = await fetch('/api/export_lab_docx', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Basic ' + btoa('admin:admin') },
         body: JSON.stringify({ content: labContent, filename: 'lab.docx' }),
       });
       const blob = await res.blob();
