@@ -23,7 +23,9 @@ class MLLabGenerator {
   // Fallback to Ollama local model if Groq fails
   async callOllamaModel(messages: any, model = 'llama3.2:latest') {
     const prompt = messages.map((m: any) => m.content).join('\n');
-    const response = await fetch('http://localhost:11434/api/generate', {
+    // Use OLLAMA_URL env var or fallback to localhost
+    const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
+    const response = await fetch(`${ollamaUrl}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
