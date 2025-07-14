@@ -24,8 +24,21 @@ class MLLabGenerator {
   async callOllamaModel(messages: any, model = 'llama3.2:latest') {
     const prompt = messages.map((m: any) => m.content).join('\n');
     // Use OLLAMA_URL env var or fallback to localhost
-    const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
-    const response = await fetch(`${ollamaUrl}/api/generate`, {
+    let ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
+
+    // Test if the Ollama server is reachable, otherwise fallback to localhost:11434
+    try {
+      const testUrl = ollamaUrl.endsWith('/') ? ollamaUrl.slice(0, -1) : ollamaUrl;
+      const res = await fetch(`${testUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, prompt: 'ping', stream: false }),
+        timeout: 2000
+      });
+      if (!res.ok) throw new Error('Ollama not responding');
+    } catch {
+      ollamaUrl = 'http://localhost:11434';
+    }  const response = await fetch(`${ollamaUrl}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
