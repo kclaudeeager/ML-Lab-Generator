@@ -1,9 +1,11 @@
 "use client";
 import LabForm from '../../../components/LabForm';
+import ScienceLabForm from '../../../components/ScienceLabForm';
 import LabOutput from '../../../components/LabOutput';
 import LabReview from '../../../components/LabReview';
 import LabExport from '../../../components/LabExport';
 import LabEditor from '../../../components/LabEditor';
+import LabTypeSelector from '../../../components/LabTypeSelector';
 import { useState, useEffect } from 'react';
 
 function getAuthHeader(username: string, password: string) {
@@ -31,6 +33,7 @@ export default function LabsPage() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [loadingLabs, setLoadingLabs] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [labCategory, setLabCategory] = useState('interactive'); // New state for lab category
 
   const labContent = edited ?? output;
 
@@ -152,7 +155,19 @@ export default function LabsPage() {
             </ul>
           )}
         </div>
-        <LabForm onResult={setOutput} />
+        
+        {/* Lab Category Selection */}
+        <div className="mb-6">
+          <LabTypeSelector value={labCategory} onTypeChange={setLabCategory} />
+        </div>
+        
+        {/* Lab Generation Forms */}
+        {labCategory === 'science' ? (
+          <ScienceLabForm onResult={setOutput} />
+        ) : (
+          <LabForm onResult={setOutput} labType={labCategory} />
+        )}
+        
         <div className="mt-10 space-y-6">
           {/* Lab Output */}
           <div className="bg-cmu-white rounded-xl shadow border border-cmu-light">

@@ -1,7 +1,3 @@
-
-
-import fetch from 'node-fetch';
-
 import 'dotenv/config';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -14,6 +10,8 @@ import {
 import Groq from 'groq-sdk';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Document, Packer, Paragraph } from 'docx';
+import { getMLPrompt } from './prompts/ml.js';
+import { SCIENCE_TOPICS, generateSciencePrompt } from './prompts/science.js';
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -25,20 +23,8 @@ class MLLabGenerator {
     const prompt = messages.map((m: any) => m.content).join('\n');
     // Use OLLAMA_URL env var or fallback to localhost
     let ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
-
-    // Test if the Ollama server is reachable, otherwise fallback to localhost:11434
-    try {
-      const testUrl = ollamaUrl.endsWith('/') ? ollamaUrl.slice(0, -1) : ollamaUrl;
-      const res = await fetch(`${testUrl}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, prompt: 'ping', stream: false }),
-        timeout: 2000
-      });
-      if (!res.ok) throw new Error('Ollama not responding');
-    } catch {
-      ollamaUrl = 'http://localhost:11434';
-    }  const response = await fetch(`${ollamaUrl}/api/generate`, {
+    console.log('Using Ollama URL:', ollamaUrl);
+    const response = await fetch(`${ollamaUrl}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -354,6 +340,49 @@ class MLLabGenerator {
               required: ['text'],
             },
           },
+          {
+            name: 'generate_science_lab',
+            description: 'Generate science labs for high school courses (chemistry, physics, biology)',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                subject: {
+                  type: 'string',
+                  enum: ['chemistry', 'physics', 'biology'],
+                  description: 'Science subject for the lab',
+                },
+                topic: {
+                  type: 'string', 
+                  description: 'Specific topic within the subject (e.g., acid-base-chemistry, projectile-motion)',
+                },
+                lab_type: {
+                  type: 'string',
+                  enum: ['interactive_lab', 'phet_pre_lab', 'phet_post_lab', 'gamified_lab'],
+                  description: 'Type of science lab to generate',
+                },
+                grade_level: {
+                  type: 'string',
+                  description: 'Target grade level (e.g., 9th, 10th, 11th, 12th)',
+                },
+              },
+              required: ['subject', 'topic', 'lab_type'],
+            },
+          },
+          {
+            name: 'list_science_topics',
+            description: 'List available science topics for lab generation',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                subject: {
+                  type: 'string',
+                  enum: ['chemistry', 'physics', 'biology'],
+                  description: 'Science subject to list topics for',
+                },
+              },
+              required: ['subject'],
+            },
+          },
         ],
       };
     });
@@ -363,6 +392,10 @@ class MLLabGenerator {
 
       try {
         switch (name) {
+          case 'system_status':
+            return await this.systemStatus();
+          case 'list_lab_recipes':
+            return await this.listLabRecipes();
           case 'read_requirements':
             return await this.readRequirements(args);
           case 'generate_lab_outline':
@@ -390,6 +423,10 @@ class MLLabGenerator {
               throw new McpError(ErrorCode.InvalidParams, 'summarize_chunk requires a text property');
             }
             return await this.summarizeChunk(args as { text: string });
+          case 'generate_science_lab':
+            return await this.generateScienceLab(args);
+          case 'list_science_topics':
+            return await this.listScienceTopics(args);
           default:
             throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
         }
@@ -399,15 +436,40 @@ class MLLabGenerator {
     });
   }
 
-  async callGroq(messages: any, model = 'llama3-8b-8192') {
-    try {
-      const completion = await groq.chat.completions.create({
-        messages,
-        model,
-        temperature: 0.7,
-      });
-      return completion.choices[0].message.content;
-    } catch (err: any) {
+  async callGroq(messages: any, model = 'llama3-8b-8192', maxRetries = 3, delayMs = 1000) {
+    function sleep(ms: number) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    let attempt = 0;
+    while (attempt < maxRetries) {
+      try {
+        if (attempt > 0) await sleep(delayMs * attempt); // Exponential backoff
+        const completion = await groq.chat.completions.create({
+          messages,
+          model,
+          temperature: 0.7,
+        });
+        return completion.choices[0].message.content;
+      } catch (err: any) {
+        const isRateLimit = err?.response?.status === 429 || (typeof err.message === 'string' && err.message.includes('rate limit'));
+        const isNetwork = err?.name === 'FetchError' || err?.code === 'ENOTFOUND' || err?.code === 'ECONNREFUSED';
+        const isTimeout = (typeof err.message === 'string' && err.message.toLowerCase().includes('timeout'));
+        if (isRateLimit || isNetwork || isTimeout) {
+          attempt++;
+          if (attempt >= maxRetries) throw err;
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+
+  async callLLM(messages: any, model = 'llama3-8b-8192') {
+    try{
+      console.log('Calling Groq with messages:', messages);
+      return await this.callGroq(messages, model);
+    }
+    catch (err: any) {
       console.error('Error calling Groq:', err);
       // Fallback on rate limit, network, or timeout error
       const isRateLimit = err?.response?.status === 429 || (typeof err.message === 'string' && err.message.includes('rate limit'));
@@ -424,36 +486,25 @@ class MLLabGenerator {
   async readRequirements(args: any) {
     const { requirements, lesson_topic, target_audience = 'beginners', duration = '1-2 hours' } = args;
 
+    const prompt = getMLPrompt('read_requirements', {
+      requirements,
+      lesson_topic,
+      target_audience,
+      duration
+    });
+
     const messages = [
       {
         role: 'system',
-        content: `You are an expert educational content analyst specializing in machine learning education. 
-        Analyze the provided requirements and create a comprehensive analysis that will guide lab creation.`,
+        content: 'You are an expert educational content analyst.',
       },
       {
         role: 'user',
-        content: `Analyze these course requirements for creating a machine learning lab:
-
-Requirements: ${requirements}
-Lesson Topic: ${lesson_topic}
-Target Audience: ${target_audience}
-Duration: ${duration}
-
-Please provide a detailed analysis including:
-1. Key learning objectives for this lesson
-2. Prerequisites and assumptions about student knowledge
-3. Appropriate difficulty level and pacing
-4. Recommended hands-on activities and exercises
-5. Assessment opportunities
-6. Potential challenges students might face
-7. Resources and tools needed
-8. Success metrics
-
-Make your analysis specific to machine learning education for beginners.`,
+        content: prompt,
       },
     ];
 
-    const analysis = await this.callGroq(messages);
+    const analysis = await this.callLLM(messages);
 
     return {
       content: [
@@ -468,43 +519,24 @@ Make your analysis specific to machine learning education for beginners.`,
   async generateLabOutline(args: any) {
     const { lesson_topic, requirements_analysis, outline_type = 'interactive' } = args;
 
+    const prompt = getMLPrompt('generate_lab_outline', {
+      lesson_topic,
+      requirements_analysis,
+      outline_type
+    });
+
     const messages = [
       {
         role: 'system',
-        content: `You are an expert instructional designer specializing in machine learning education. 
-        Create detailed lab outlines that are engaging, educational, and appropriate for beginners.`,
+        content: 'You are an expert instructional designer.',
       },
       {
         role: 'user',
-        content: `Create a comprehensive lab outline for a machine learning lesson:
-
-Lesson Topic: ${lesson_topic}
-Outline Type: ${outline_type}
-
-Requirements Analysis:
-${requirements_analysis}
-
-Please create a detailed outline that includes:
-1. Lab title and overview
-2. Learning objectives (specific, measurable)
-3. Prerequisites and setup requirements
-4. Detailed section breakdown with:
-   - Introduction/motivation
-   - Theory/concept explanation
-   - Hands-on activities
-   - Practice exercises
-   - Reflection questions
-   - Assessment components
-5. Time allocation for each section
-6. Required materials and resources
-7. Extension activities for advanced students
-8. Troubleshooting guide
-
-Focus on making the lab interactive, engaging, and suitable for beginners in machine learning.`,
+        content: prompt,
       },
     ];
 
-    const outline = await this.callGroq(messages);
+    const outline = await this.callLLM(messages);
 
     return {
       content: [
@@ -519,45 +551,25 @@ Focus on making the lab interactive, engaging, and suitable for beginners in mac
   async generateInteractiveLab(args: any) {
     const { outline, interactivity_level = 'high', include_code = true, reflection_questions = true } = args;
 
+    const prompt = getMLPrompt('generate_interactive_lab', {
+      outline,
+      interactivity_level,
+      include_code,
+      reflection_questions
+    });
+
     const messages = [
       {
         role: 'system',
-        content: `You are an expert machine learning educator creating interactive lab content. 
-        Generate comprehensive, hands-on labs that engage students through practical activities.`,
+        content: 'You are an expert machine learning educator creating interactive lab content.',
       },
       {
         role: 'user',
-        content: `Create a full interactive lab based on this outline:
-
-${outline}
-
-Requirements:
-- Interactivity Level: ${interactivity_level}
-- Include Code Examples: ${include_code}
-- Include Reflection Questions: ${reflection_questions}
-
-Generate a complete lab that includes:
-1. Engaging introduction with real-world context
-2. Step-by-step interactive activities
-3. Code examples and exercises (if requested)
-4. Visual elements and diagrams descriptions
-5. Interactive checkpoints and self-assessments
-6. Reflection questions and discussion prompts
-7. Practical exercises with immediate feedback
-8. Wrap-up activity that connects to real-world applications
-
-Make the lab highly interactive with frequent opportunities for students to engage with the material. Include specific instructions for interactive elements like:
-- Interactive coding exercises
-- Data exploration activities
-- Visual analysis tasks
-- Group discussion prompts
-- Self-check quizzes
-
-Focus on making complex ML concepts accessible and engaging for beginners.`,
+        content: prompt,
       },
     ];
 
-    const lab = await this.callGroq(messages, 'llama3-70b-8192');
+    const lab = await this.callLLM(messages, 'llama3-70b-8192');
 
     return {
       content: [
@@ -572,41 +584,24 @@ Focus on making complex ML concepts accessible and engaging for beginners.`,
   async generateGamifiedLab(args: any) {
     const { base_lab, gamification_elements = ['points', 'badges', 'challenges'], difficulty_progression = 'linear' } = args;
 
+    const prompt = getMLPrompt('generate_gamified_lab', {
+      base_lab,
+      gamification_elements: gamification_elements.join(', '),
+      difficulty_progression
+    });
+
     const messages = [
       {
         role: 'system',
-        content: `You are an expert in educational gamification and machine learning education. 
-        Transform traditional lab content into engaging, game-like experiences that motivate learning.`,
+        content: 'You are an expert in educational gamification and machine learning education.',
       },
       {
         role: 'user',
-        content: `Transform this lab into a gamified experience:
-
-Base Lab Content:
-${base_lab}
-
-Gamification Elements to Include: ${gamification_elements.join(', ')}
-Difficulty Progression: ${difficulty_progression}
-
-Create a gamified version that includes:
-1. Game narrative/theme that connects to the ML concepts
-2. Point system with clear scoring criteria
-3. Badge/achievement system with descriptions
-4. Challenge levels with increasing difficulty
-5. Leaderboard mechanics (if applicable)
-6. Progress tracking and feedback systems
-7. Unlockable content and rewards
-8. Interactive storyline that guides learning
-9. Competition and collaboration elements
-10. Success celebrations and milestone recognition
-
-Make sure the gamification enhances rather than distracts from the learning objectives. Include specific instructions for implementing game mechanics and tracking student progress.
-
-Keep the focus on machine learning concepts while making the experience fun and engaging.`,
+        content: prompt,
       },
     ];
 
-    const gamifiedLab = await this.callGroq(messages, 'llama3-70b-8192');
+    const gamifiedLab = await this.callLLM(messages, 'llama3-70b-8192');
 
     return {
       content: [
@@ -621,47 +616,25 @@ Keep the focus on machine learning concepts while making the experience fun and 
   async generateProjectBasedLab(args: any) {
     const { outline, project_theme, complexity_level = 'beginner', deliverables = [] } = args;
 
+    const prompt = getMLPrompt('generate_project_based_lab', {
+      outline,
+      project_theme,
+      complexity_level,
+      deliverables: deliverables.join(', ')
+    });
+
     const messages = [
       {
         role: 'system',
-        content: `You are an expert in project-based learning and machine learning education. 
-        Create comprehensive project-based labs that give students real-world experience.`,
+        content: 'You are an expert in project-based learning and machine learning education.',
       },
       {
         role: 'user',
-        content: `Create a project-based lab based on this outline:
-
-${outline}
-
-Project Theme: ${project_theme}
-Complexity Level: ${complexity_level}
-Expected Deliverables: ${deliverables.join(', ')}
-
-Generate a complete project-based lab that includes:
-1. Project overview and real-world context
-2. Clear project objectives and success criteria
-3. Step-by-step project phases with milestones
-4. Detailed task descriptions and requirements
-5. Resource lists and tools needed
-6. Timeline and project management guidance
-7. Collaboration and teamwork elements
-8. Quality assurance and testing procedures
-9. Documentation and presentation requirements
-10. Evaluation criteria and rubrics
-11. Extension opportunities and next steps
-
-Make the project feel authentic and relevant to real-world machine learning applications. Include specific guidance for:
-- Project planning and organization
-- Data collection and preparation
-- Model development and testing
-- Results analysis and interpretation
-- Presentation and communication of findings
-
-Ensure the project is appropriate for beginners while being challenging and engaging.`,
+        content: prompt,
       },
     ];
 
-    const projectLab = await this.callGroq(messages, 'llama3-70b-8192');
+    const projectLab = await this.callLLM(messages, 'llama3-70b-8192');
 
     return {
       content: [
@@ -676,44 +649,24 @@ Ensure the project is appropriate for beginners while being challenging and enga
   async reviewLabQuality(args: any) {
     const { lab_content, review_criteria = ['clarity', 'engagement', 'educational_value'], target_audience = 'beginners' } = args;
 
+    const prompt = getMLPrompt('review_lab_quality', {
+      lab_content,
+      review_criteria: review_criteria.join(', '),
+      target_audience
+    });
+
     const messages = [
       {
         role: 'system',
-        content: `You are an expert educational content reviewer specializing in machine learning education. 
-        Provide detailed, constructive feedback on lab quality with specific recommendations for improvement.`,
+        content: 'You are an expert educational content reviewer specializing in machine learning education.',
       },
       {
         role: 'user',
-        content: `Review this machine learning lab content:
-
-${lab_content}
-
-Review Criteria: ${review_criteria.join(', ')}
-Target Audience: ${target_audience}
-
-Provide a comprehensive review that includes:
-1. Overall quality assessment (score out of 10)
-2. Strengths of the current content
-3. Areas for improvement with specific suggestions
-4. Evaluation against each review criterion
-5. Accessibility and inclusivity considerations
-6. Technical accuracy assessment
-7. Engagement level and motivation factors
-8. Learning objective alignment
-9. Pacing and difficulty progression
-10. Assessment and feedback mechanisms
-
-For each area, provide:
-- Current status assessment
-- Specific recommendations for improvement
-- Priority level (high, medium, low)
-- Implementation suggestions
-
-Focus on how well the lab serves machine learning beginners and whether it effectively teaches the intended concepts.`,
+        content: prompt,
       },
     ];
 
-    const review = await this.callGroq(messages, 'llama3-70b-8192');
+    const review = await this.callLLM(messages, 'llama3-70b-8192');
 
     return {
       content: [
@@ -728,50 +681,24 @@ Focus on how well the lab serves machine learning beginners and whether it effec
   async testLabEffectiveness(args: any) {
     const { lab_content, test_scenarios = ['beginner_student'], focus_areas = ['instructions_clarity'] } = args;
 
+    const prompt = getMLPrompt('test_lab_effectiveness', {
+      lab_content,
+      test_scenarios: test_scenarios.join(', '),
+      focus_areas: focus_areas.join(', ')
+    });
+
     const messages = [
       {
         role: 'system',
-        content: `You are an expert educational testing specialist. 
-        Simulate different student scenarios and test lab effectiveness from multiple perspectives.`,
+        content: 'You are an expert educational testing specialist specializing in machine learning education.',
       },
       {
         role: 'user',
-        content: `Test this machine learning lab for effectiveness:
-
-${lab_content}
-
-Test Scenarios: ${test_scenarios.join(', ')}
-Focus Areas: ${focus_areas.join(', ')}
-
-For each test scenario, provide:
-1. Scenario description and student profile
-2. Walkthrough of the lab from that perspective
-3. Potential challenges and obstacles
-4. Points of confusion or difficulty
-5. Effectiveness of explanations and instructions
-6. Engagement and motivation factors
-7. Learning outcome achievement likelihood
-8. Suggested improvements
-
-For each focus area, evaluate:
-- Current effectiveness (1-10 scale)
-- Specific issues identified
-- Impact on learning outcomes
-- Recommended solutions
-
-Provide a comprehensive testing report that includes:
-- Executive summary of findings
-- Detailed scenario analyses
-- Critical issues that need immediate attention
-- Suggestions for improvement
-- Validation of learning objectives
-- Recommendations for pilot testing
-
-Focus on practical issues that real students would encounter when working through this lab.`,
+        content: prompt,
       },
     ];
 
-    const testReport = await this.callGroq(messages, 'llama3-70b-8192');
+    const testReport = await this.callLLM(messages, 'llama3-70b-8192');
 
     return {
       content: [
@@ -786,47 +713,24 @@ Focus on practical issues that real students would encounter when working throug
   async generateAssessmentRubric(args: any) {
     const { lab_content, assessment_type = 'formative', grading_scale = 'points' } = args;
 
+    const prompt = getMLPrompt('generate_assessment_rubric', {
+      lab_content,
+      assessment_type,
+      grading_scale
+    });
+
     const messages = [
       {
         role: 'system',
-        content: `You are an expert in educational assessment and machine learning education. 
-        Create comprehensive, fair, and effective assessment rubrics.`,
+        content: 'You are an expert in educational assessment and machine learning education.',
       },
       {
         role: 'user',
-        content: `Create an assessment rubric for this machine learning lab:
-
-${lab_content}
-
-Assessment Type: ${assessment_type}
-Grading Scale: ${grading_scale}
-
-Generate a comprehensive rubric that includes:
-1. Clear assessment criteria aligned with learning objectives
-2. Performance levels and descriptors
-3. Scoring guidelines and point allocation
-4. Specific indicators for each performance level
-5. Feedback prompts and suggestions
-6. Self-assessment components
-7. Peer assessment elements (if applicable)
-8. Rubric usage instructions for instructors
-9. Common issues and how to address them
-10. Calibration examples and anchor papers
-
-The rubric should evaluate:
-- Conceptual understanding
-- Practical application skills
-- Problem-solving approach
-- Code quality and documentation
-- Analysis and interpretation
-- Communication and presentation
-- Collaboration and participation
-
-Make the rubric specific to machine learning concepts while being clear and actionable for both instructors and students.`,
+        content: prompt,
       },
     ];
 
-    const rubric = await this.callGroq(messages, 'llama3-70b-8192');
+    const rubric = await this.callLLM(messages, 'llama3-70b-8192');
 
     return {
       content: [
@@ -841,45 +745,24 @@ Make the rubric specific to machine learning concepts while being clear and acti
   async optimizeLabContent(args: any) {
     const { lab_content, review_feedback, optimization_goals = ['improve_clarity'] } = args;
 
+    const prompt = getMLPrompt('optimize_lab_content', {
+      lab_content,
+      review_feedback,
+      optimization_goals: optimization_goals.join(', ')
+    });
+
     const messages = [
       {
         role: 'system',
-        content: `You are an expert educational content optimizer specializing in machine learning education. 
-        Improve lab content based on feedback while maintaining educational effectiveness.`,
+        content: 'You are an expert educational content optimizer specializing in machine learning education.',
       },
       {
         role: 'user',
-        content: `Optimize this machine learning lab content:
-
-Original Lab Content:
-${lab_content}
-
-Review Feedback:
-${review_feedback}
-
-Optimization Goals: ${optimization_goals.join(', ')}
-
-Provide optimized content that addresses the feedback while achieving the optimization goals. Include:
-
-1. Revised lab content with improvements highlighted
-2. Summary of changes made and rationale
-3. How each optimization goal was addressed
-4. Remaining areas for future improvement
-5. Implementation notes for instructors
-6. Quality assurance checklist
-
-Focus on:
-- Maintaining educational integrity
-- Improving student experience
-- Addressing identified issues
-- Enhancing clarity and engagement
-- Ensuring accessibility
-
-Provide the optimized content in a clear, organized format that can be immediately implemented.`,
+        content: prompt,
       },
     ];
 
-    const optimizedLab = await this.callGroq(messages, 'llama3-70b-8192');
+    const optimizedLab = await this.callLLM(messages, 'llama3-70b-8192');
 
     return {
       content: [
@@ -945,7 +828,7 @@ Provide the optimized content in a clear, organized format that can be immediate
         content: text,
       },
     ];
-    const summary = await this.callGroq(messages);
+    const summary = await this.callLLM(messages);
     return {
       content: [
         {
@@ -956,10 +839,113 @@ Provide the optimized content in a clear, organized format that can be immediate
     };
   }
 
+  async generateScienceLab(args: any) {
+    const { subject, topic, lab_type, grade_level } = args;
+
+    try {
+      const prompt = generateSciencePrompt(topic, subject, lab_type);
+      
+      const messages = [
+        {
+          role: 'system',
+          content: `You are an expert secondary science educator specializing in ${subject}.`,
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ];
+
+      const lab = await this.callLLM(messages, 'llama3-70b-8192');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: lab,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new McpError(ErrorCode.InvalidParams, `Error generating science lab: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async listScienceTopics(args: any) {
+    const { subject } = args;
+    
+    const validSubjects = ['chemistry', 'physics', 'biology'];
+    if (!validSubjects.includes(subject)) {
+      throw new McpError(ErrorCode.InvalidParams, `Subject "${subject}" not found. Available subjects: ${validSubjects.join(', ')}`);
+    }
+
+    const topics = (SCIENCE_TOPICS as any)[subject];
+    if (!topics) {
+      throw new McpError(ErrorCode.InvalidParams, `No topics found for subject "${subject}"`);
+    }
+
+    const topicList = Object.keys(topics).map(topicKey => {
+      const topicData = topics[topicKey];
+      return {
+        topic: topicKey,
+        title: topicKey.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        grade_levels: topicData.grade_levels || [],
+        difficulty: topicData.difficulty || 'intermediate',
+        concepts: topicData.concepts || [],
+        estimated_time: topicData.estimated_time || 60
+      };
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Available ${subject} topics:\n\n` + 
+                topicList.map(t => 
+                  `**${t.title}**\n` +
+                  `- Topic ID: ${t.topic}\n` +
+                  `- Grade Levels: ${t.grade_levels.join(', ')}\n` +
+                  `- Difficulty: ${t.difficulty}\n` +
+                  `- Key Concepts: ${t.concepts.join(', ')}\n` +
+                  `- Estimated Time: ${t.estimated_time} minutes\n`
+                ).join('\n'),
+        },
+      ],
+    };
+  }
+
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error('ML Lab Generator MCP Server running on stdio');
+  }
+  
+  // System status endpoint
+  async systemStatus() {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'System is online. MCP ML Lab Generator is running.'
+        }
+      ]
+    };
+  }
+
+  // List available lab recipes endpoint
+  async listLabRecipes() {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: [
+            'Available lab recipes:',
+            '- ML: read_requirements, generate_lab_outline, generate_interactive_lab, generate_gamified_lab, generate_project_based_lab, review_lab_quality, test_lab_effectiveness, generate_assessment_rubric, optimize_lab_content, export_lab_pdf, export_lab_docx, summarize_chunk',
+            '- Science: generate_science_lab, list_science_topics',
+          ].join('\n')
+        }
+      ]
+    };
   }
 }
 

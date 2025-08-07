@@ -746,6 +746,104 @@ const swaggerSpec = {
         }
       }
     },
+    '/api/generate_science_lab': {
+      post: {
+        summary: 'Generate a science lab',
+        description: 'Creates a science lab for chemistry, physics, or biology topics',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  subject: {
+                    type: 'string',
+                    enum: ['chemistry', 'physics', 'biology'],
+                    description: 'The science subject for the lab'
+                  },
+                  topic: {
+                    type: 'string',
+                    description: 'The specific topic for the lab'
+                  },
+                  lab_type: {
+                    type: 'string',
+                    enum: ['hands-on-experiment', 'simulation', 'inquiry-based', 'demonstration'],
+                    description: 'Type of science lab',
+                    default: 'hands-on-experiment'
+                  },
+                  grade_level: {
+                    type: 'string',
+                    description: 'Target grade level (e.g., "9-12", "6-8")',
+                    default: '9-12'
+                  }
+                },
+                required: ['subject', 'topic']
+              }
+            }
+          }
+        },
+        responses: {
+          '200': { description: 'Science lab generated successfully' },
+          '400': { description: 'Invalid subject or missing required fields' },
+          '500': { description: 'Internal server error' }
+        }
+      }
+    },
+    '/api/list_science_topics': {
+      post: {
+        summary: 'List available science topics',
+        description: 'Get available topics for a specific science subject',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  subject: {
+                    type: 'string',
+                    enum: ['chemistry', 'physics', 'biology'],
+                    description: 'The science subject to list topics for'
+                  }
+                },
+                required: ['subject']
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'List of available topics',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    topics: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          topic: { type: 'string' },
+                          title: { type: 'string' },
+                          grade_levels: { type: 'array', items: { type: 'string' } },
+                          difficulty: { type: 'string' },
+                          concepts: { type: 'array', items: { type: 'string' } },
+                          estimated_time: { type: 'number' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': { description: 'Invalid subject' },
+          '500': { description: 'Internal server error' }
+        }
+      }
+    },
     '/api/summarize_document_chunks': {
       post: {
         summary: 'Summarize document chunks',
@@ -1158,6 +1256,32 @@ app.post('/api/generate_lab_from_documents', basicAuth, async (req: Request, res
   }
 });
 
+app.post('/api/upload_document', upload.single('outline'), async (req: Request, res: Response) => {
+  const file = (req as Request & { file?: Express.Multer.File }).file;
+  
+  if (!file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  if (!file.originalname.endsWith('.docx')) {
+    return res.status(400).json({ error: 'Only .docx files are supported for this endpoint' });
+  }
+
+  try {
+    const result = await mammoth.extractRawText({ buffer: file.buffer });
+    const text = result.value;
+
+    if (!text || text.trim().length === 0) {
+      return res.status(400).json({ error: 'No text content found in the uploaded file' });
+    }
+
+    res.json({ text });
+  } catch (err) {
+    console.error('Document upload error:', err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 // --- DOCUMENT UPLOAD ENDPOINT ---
 
 app.post('/api/upload_document_enhanced', basicAuth, upload.single('document'), async (req: Request, res: Response) => {
@@ -1325,6 +1449,24 @@ app.post('/api/query_document', basicAuth, async (req: Request, res: Response) =
 
   } catch (err) {
     console.error('Document query error:', err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post('/api/generate_science_lab', basicAuth, async (req: Request, res: Response) => {
+  try {
+    const result = await generator.generateScienceLab(req.body);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post('/api/list_science_topics', basicAuth, async (req: Request, res: Response) => {
+  try {
+    const result = await generator.listScienceTopics(req.body);
+    res.json(result);
+  } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
 });

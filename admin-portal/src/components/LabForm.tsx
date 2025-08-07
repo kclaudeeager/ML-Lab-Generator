@@ -2,23 +2,22 @@ import { useState, useEffect } from 'react';
 
 interface LabFormProps {
   onResult: (output: string) => void;
+  labType: string;
 }
 
 const steps = [
-  'Lab Type',
   'Requirements',
   'Lesson Topic',
   'Audience & Duration',
   'Review & Generate',
 ];
 
-export default function LabForm({ onResult }: LabFormProps) {
+export default function LabForm({ onResult, labType }: LabFormProps) {
   const [step, setStep] = useState(0);
   const [requirements, setRequirements] = useState('');
   const [lessonTopic, setLessonTopic] = useState('');
   const [audience, setAudience] = useState('beginners');
   const [duration, setDuration] = useState('1-2 hours');
-  const [labType, setLabType] = useState('interactive');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [outlineFile, setOutlineFile] = useState<File | null>(null);
@@ -79,7 +78,7 @@ export default function LabForm({ onResult }: LabFormProps) {
     try {
       console.log('Generating lab with requirements:', requirements, 'and lesson topic:', lessonTopic);
       // Step 1: Read requirements
-      const reqRes = await fetch(process.env.NEXT_PUBLIC_API_URL + '/api/read_requirements', {
+      const reqRes = await fetch('/api/read_requirements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json',Authorization: 'Basic ' + btoa('admin:admin')  },
   
@@ -91,7 +90,7 @@ export default function LabForm({ onResult }: LabFormProps) {
       console.log('Requirements analysis:', requirementsAnalysis);
 
       // Step 2: Generate lab outline
-      const outlineRes = await fetch(process.env.NEXT_PUBLIC_API_URL + '/api/generate_lab_outline', {
+      const outlineRes = await fetch('/api/generate_lab_outline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json',Authorization: 'Basic ' + btoa('admin:admin')  },
         body: JSON.stringify({ lesson_topic: lessonTopic, requirements_analysis: requirementsAnalysis, outline_type: labType }),
@@ -104,7 +103,7 @@ export default function LabForm({ onResult }: LabFormProps) {
       // Step 3: Generate full lab based on type
       let labContent = outline;
       if (labType === 'interactive') {
-        const labRes = await fetch(process.env.NEXT_PUBLIC_API_URL + '/api/generate_interactive_lab', {
+        const labRes = await fetch('/api/generate_interactive_lab', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json',Authorization: 'Basic ' + btoa('admin:admin')  },
           body: JSON.stringify({ outline, interactivity_level: 'high', include_code: true, reflection_questions: true }),
@@ -113,14 +112,14 @@ export default function LabForm({ onResult }: LabFormProps) {
         labContent = labData.content?.[0]?.text || '';
       } else if (labType === 'gamified') {
         // First generate interactive lab, then gamify it
-        const labRes = await fetch(process.env.NEXT_PUBLIC_API_URL + '/api/generate_interactive_lab', {
+        const labRes = await fetch('/api/generate_interactive_lab', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json',Authorization: 'Basic ' + btoa('admin:admin')  },
           body: JSON.stringify({ outline, interactivity_level: 'high', include_code: true, reflection_questions: true }),
         });
         const labData = await labRes.json();
         const baseLab = labData.content?.[0]?.text || '';
-        const gamifiedRes = await fetch(process.env.NEXT_PUBLIC_API_URL + '/api/generate_gamified_lab', {
+        const gamifiedRes = await fetch('/api/generate_gamified_lab', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json',Authorization: 'Basic ' + btoa('admin:admin')  },
           body: JSON.stringify({ base_lab: baseLab, gamification_elements: ['points', 'badges', 'challenges'], difficulty_progression: 'linear' }),
@@ -128,7 +127,7 @@ export default function LabForm({ onResult }: LabFormProps) {
         const gamifiedData = await gamifiedRes.json();
         labContent = gamifiedData.content?.[0]?.text || '';
       } else if (labType === 'project-based') {
-        const projectRes = await fetch(process.env.NEXT_PUBLIC_API_URL + '/api/generate_project_based_lab', {
+        const projectRes = await fetch('/api/generate_project_based_lab', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json',Authorization: 'Basic ' + btoa('admin:admin')  },
           body: JSON.stringify({ outline, project_theme: 'healthcare', complexity_level: 'beginner', deliverables: ['analysis report', 'working model'] }),
@@ -173,7 +172,7 @@ export default function LabForm({ onResult }: LabFormProps) {
           const formData = new FormData();
           formData.append('document', outlineFile);
           formData.append('processingType', 'hierarchical');
-          const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/api/upload_document_enhanced', {
+          const res = await fetch('/api/upload_document_enhanced', {
             method: 'POST',
             headers: { Authorization: 'Basic ' + btoa('admin:admin') },
             body: formData,
@@ -186,7 +185,7 @@ export default function LabForm({ onResult }: LabFormProps) {
           const formData = new FormData();
           formData.append('document', blueprintFile);
           formData.append('processingType', 'hierarchical');
-          const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/api/upload_document_enhanced', {
+          const res = await fetch('/api/upload_document_enhanced', {
             method: 'POST',
             headers: { Authorization: 'Basic ' + btoa('admin:admin') },
             body: formData,
@@ -217,7 +216,7 @@ export default function LabForm({ onResult }: LabFormProps) {
         };
 
         const labData = await fetchJson(
-          process.env.NEXT_PUBLIC_API_URL + '/api/generate_lab_from_processed_document',
+          '/api/generate_lab_from_processed_document',
           {
             method: 'POST',
             headers: {
@@ -268,19 +267,6 @@ export default function LabForm({ onResult }: LabFormProps) {
 
       <div className="min-h-[180px]">
         {step === 0 && (
-          <div className="flex flex-col items-center">
-            <label className="block text-lg font-semibold mb-4 text-cmu-red">Select Lab Type</label>
-            <div className="flex gap-4">
-              {['interactive', 'gamified', 'project-based'].map(type => (
-                <button key={type} type="button" className={`px-6 py-3 rounded-lg font-semibold border-2 ${labType === type ? 'bg-cmu-red text-cmu-white border-cmu-red' : 'bg-cmu-white text-cmu-red border-cmu-red hover:bg-cmu-light'}`} onClick={() => setLabType(type)}>
-                  {type.charAt(0).toUpperCase() + type.slice(1).replace('-', ' ')}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {step === 1 && (
           <div>
             <label className="block text-lg font-semibold mb-2 text-cmu-red">Requirements</label>
             <textarea value={requirements} onChange={e => setRequirements(e.target.value)} rows={4} className="w-full rounded-lg border-2 border-cmu-gray p-3" required />
@@ -297,14 +283,14 @@ export default function LabForm({ onResult }: LabFormProps) {
           </div>
         )}
 
-        {step === 2 && (
+        {step === 1 && (
           <div>
             <label className="block text-lg font-semibold mb-2 text-cmu-red">Lesson Topic</label>
             <input value={lessonTopic} onChange={e => setLessonTopic(e.target.value)} className="w-full rounded-lg border-2 border-cmu-gray p-3" required />
           </div>
         )}
 
-        {step === 3 && (
+        {step === 2 && (
           <div className="flex gap-6">
             <div className="flex-1">
               <label className="block text-lg font-semibold mb-2 text-cmu-red">Target Audience</label>
@@ -317,7 +303,7 @@ export default function LabForm({ onResult }: LabFormProps) {
           </div>
         )}
 
-        {step === 4 && (
+        {step === 3 && (
           <div>
             <label className="block text-lg font-semibold mb-4 text-cmu-red">Review & Generate</label>
             <ul className="mb-6 space-y-2">

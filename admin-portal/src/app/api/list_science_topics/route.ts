@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const res = await fetch((process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL) + '/generate_lab_outline', {
+  const res = await fetch((process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL) + '/api/list_science_topics', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
