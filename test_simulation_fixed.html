@@ -1,25 +1,9 @@
-import React from 'react';
-import { SimulationMetadata } from '../../services/types/simulation';
-
-interface SimulationPreviewProps {
-  code: string;
-  metadata: SimulationMetadata;
-}
-
-export default function SimulationPreview({ code, metadata }: SimulationPreviewProps) {
-  const generateHTML = () => {
-    const isP5js = metadata.rendering_library === 'p5js';
-    const dependencies = isP5js 
-      ? '<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>'
-      : '';
-
-    return `<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${metadata.subject} Simulation</title>
-  ${dependencies}
+  <title>Test Chemistry Simulation - Fixed</title>
   <style>
     body {
       margin: 0;
@@ -83,10 +67,97 @@ export default function SimulationPreview({ code, metadata }: SimulationPreviewP
     <div id="controls-container"></div>
   </div>
   <script>
-    try {
-      // Execute the simulation code
-      ${code}
+    // Simple test simulation code that follows our expected format
+    (() => {
+      var simulationMeta = {
+        title: "Test Chemistry Simulation",
+        description: "Testing pH simulation rendering",
+        gradeLevel: "9-12",
+        subject: "Chemistry",
+        complexityLevel: "intermediate",
+        renderingLibrary: "canvas",
+        variables: [
+          {
+            name: "concentration",
+            type: "slider",
+            min: 0.01,
+            max: 1.0,
+            step: 0.01
+          },
+          {
+            name: "temperature",
+            type: "slider",
+            min: 273,
+            max: 373,
+            step: 1
+          }
+        ]
+      };
       
+      function initializeSimulation(canvas) {
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = "18px Arial";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+      }
+      
+      function runSimulation(variables) {
+        const concentration = variables["concentration"] || 0.1;
+        const temperature = variables["temperature"] || 298;
+        const Ka = 1.8e-5;
+        const pH = -Math.log10(Math.sqrt(Ka * concentration));
+        const indicatorColor = pH < 7 ? "red" : pH > 7 ? "blue" : "green";
+        return { pH, concentration, temperature, indicatorColor };
+      }
+      
+      function updateSimulation(variables, canvas) {
+        const ctx = canvas.getContext("2d");
+        const { pH, concentration, temperature, indicatorColor } = variables;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "black";
+        ctx.fillText(`pH: ${pH.toFixed(2)}`, 10, 20);
+        ctx.fillText(`Concentration: ${concentration} M`, 10, 40);
+        ctx.fillText(`Temperature: ${temperature} K`, 10, 60);
+        ctx.fillStyle = indicatorColor;
+        ctx.fillRect(10, 80, 30, 30);
+        ctx.fillStyle = "black";
+        ctx.fillText(`Indicator Color: ${indicatorColor}`, 50, 90);
+      }
+      
+      function renderVisualization(data, canvas) {
+        updateSimulation(data, canvas);
+      }
+      
+      function mountSimulation(canvas, initialVars) {
+        initializeSimulation(canvas);
+        const simulationVars = runSimulation(initialVars);
+        updateSimulation(simulationVars, canvas);
+        return simulationVars;
+      }
+
+      // Expose simulation functions and metadata globally
+      if (typeof simulationMeta !== 'undefined') {
+        window.simulationMeta = simulationMeta;
+      }
+      if (typeof initializeSimulation !== 'undefined') {
+        window.initializeSimulation = initializeSimulation;
+      }
+      if (typeof runSimulation !== 'undefined') {
+        window.runSimulation = runSimulation;
+      }
+      if (typeof updateSimulation !== 'undefined') {
+        window.updateSimulation = updateSimulation;
+      }
+      if (typeof renderVisualization !== 'undefined') {
+        window.renderVisualization = renderVisualization;
+      }
+      if (typeof mountSimulation !== 'undefined') {
+        window.mountSimulation = mountSimulation;
+      }
+    })();
+
+    try {
       // Mount the simulation after the code is loaded
       const canvas = document.getElementById('simulation-canvas');
       const container = document.getElementById('simulation-container');
@@ -110,36 +181,36 @@ export default function SimulationPreview({ code, metadata }: SimulationPreviewP
           const controlsContainer = document.getElementById('controls-container');
           const controlsHTML = window.simulationMeta.variables.map(variable => {
             if (variable.type === 'slider') {
-              return \`
+              return `
                 <div style="margin: 10px 0;">
-                  <label style="display: block; margin-bottom: 5px; font-weight: bold;">\${variable.name}: <span id="\${variable.name}-value">\${variable.min || 0}</span></label>
+                  <label style="display: block; margin-bottom: 5px; font-weight: bold;">${variable.name}: <span id="${variable.name}-value">${variable.min || 0}</span></label>
                   <input type="range" 
-                         id="\${variable.name}-input"
-                         min="\${variable.min || 0}" 
-                         max="\${variable.max || 100}" 
-                         step="\${variable.step || 1}" 
-                         value="\${variable.min || 0}"
+                         id="${variable.name}-input"
+                         min="${variable.min || 0}" 
+                         max="${variable.max || 100}" 
+                         step="${variable.step || 1}" 
+                         value="${variable.min || 0}"
                          style="width: 100%;"
                          oninput="
-                           document.getElementById('\${variable.name}-value').textContent = this.value;
-                           const newVars = {...defaultVars, [\${variable.name}]: parseFloat(this.value)};
+                           document.getElementById('${variable.name}-value').textContent = this.value;
+                           const newVars = {...defaultVars, ['${variable.name}']: parseFloat(this.value)};
                            const newResult = window.runSimulation(newVars);
                            window.updateSimulation(newResult, canvas);
                            window.renderVisualization(newResult, canvas);
                          ">
                 </div>
-              \`;
+              `;
             }
             return '';
           }).join('');
           
           if (controlsHTML && controlsContainer) {
-            controlsContainer.innerHTML = \`
+            controlsContainer.innerHTML = `
               <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 6px;">
                 <h4 style="margin-top: 0;">Controls</h4>
-                \${controlsHTML}
+                ${controlsHTML}
               </div>
-            \`;
+            `;
           }
         }
       } else {
@@ -153,60 +224,4 @@ export default function SimulationPreview({ code, metadata }: SimulationPreviewP
     }
   </script>
 </body>
-</html>`;
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Simulation Preview</h3>
-        <button
-          onClick={() => {
-            const html = generateHTML();
-            const blob = new Blob([html], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${metadata.subject}_simulation.html`;
-            a.click();
-            URL.revokeObjectURL(url);
-          }}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-        >
-          Download HTML
-        </button>
-      </div>
-
-      <div className="border rounded-lg overflow-hidden bg-white">
-        <iframe
-          srcDoc={generateHTML()}
-          className="w-full h-[600px]"
-          title="Simulation Preview"
-          sandbox="allow-scripts"
-        />
-      </div>
-
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-blue-900 mb-2">Simulation Details</h4>
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
-          <div>
-            <dt className="text-sm font-medium text-blue-700">Subject</dt>
-            <dd className="mt-1 text-sm text-blue-900">{metadata.subject}</dd>
-          </div>
-          <div>
-            <dt className="text-sm font-medium text-blue-700">Grade Level</dt>
-            <dd className="mt-1 text-sm text-blue-900">{metadata.grade_level}</dd>
-          </div>
-          <div>
-            <dt className="text-sm font-medium text-blue-700">Library</dt>
-            <dd className="mt-1 text-sm text-blue-900">{metadata.rendering_library}</dd>
-          </div>
-          <div>
-            <dt className="text-sm font-medium text-blue-700">Complexity</dt>
-            <dd className="mt-1 text-sm text-blue-900">{metadata.complexity_level}</dd>
-          </div>
-        </dl>
-      </div>
-    </div>
-  );
-}
+</html>

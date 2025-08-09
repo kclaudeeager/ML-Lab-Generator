@@ -1186,9 +1186,41 @@ declare var requestAnimationFrame: (callback: FrameRequestCallback) => number;
     sourcemap: include_source_map
   });
 
+  // Extract the compiled code and expose simulation functions globally
+  let compiledCode = result.outputFiles[0].text;
+  
+  // Look for the IIFE pattern and add global exposure at the end
+  if (compiledCode.includes('(() => {') && compiledCode.includes('})();')) {
+    // Replace the closing })(); with code to expose functions globally
+    compiledCode = compiledCode.replace(
+      /\}\)\(\);?\s*$/,
+      `
+  // Expose simulation functions and metadata globally
+  if (typeof simulationMeta !== 'undefined') {
+    window.simulationMeta = simulationMeta;
+  }
+  if (typeof initializeSimulation !== 'undefined') {
+    window.initializeSimulation = initializeSimulation;
+  }
+  if (typeof runSimulation !== 'undefined') {
+    window.runSimulation = runSimulation;
+  }
+  if (typeof updateSimulation !== 'undefined') {
+    window.updateSimulation = updateSimulation;
+  }
+  if (typeof renderVisualization !== 'undefined') {
+    window.renderVisualization = renderVisualization;
+  }
+  if (typeof mountSimulation !== 'undefined') {
+    window.mountSimulation = mountSimulation;
+  }
+})();`
+    );
+  }
+
   return {
     success: true,
-    compiled_code: result.outputFiles[0].text,
+    compiled_code: compiledCode,
     source_map: include_source_map ? result.outputFiles.find(f => f.path.endsWith('.map'))?.text : undefined,
     diagnostics
   };

@@ -157,7 +157,7 @@ export default function SimulationViewer({ simulationCode, metadata }: Simulatio
             const canvas = document.getElementById('simulation-canvas');
             const container = document.getElementById('simulation-container');
             
-            if (canvas && typeof mountSimulation === 'function') {
+            if (canvas && typeof window.mountSimulation === 'function') {
                 // Default variables for the simulation
                 const defaultVars = {
                     concentration: 0.1,
@@ -168,13 +168,13 @@ export default function SimulationViewer({ simulationCode, metadata }: Simulatio
                 };
                 
                 // Mount the simulation
-                const result = mountSimulation(canvas, defaultVars);
+                const result = window.mountSimulation(canvas, defaultVars);
                 console.log('Simulation mounted successfully:', result);
                 
                 // Add basic controls if the simulation meta is available
-                if (typeof simulationMeta !== 'undefined' && simulationMeta.variables) {
+                if (typeof window.simulationMeta !== 'undefined' && window.simulationMeta.variables) {
                     const controlsContainer = document.getElementById('controls-container');
-                    const controlsHTML = simulationMeta.variables.map(variable => {
+                    const controlsHTML = window.simulationMeta.variables.map(variable => {
                         if (variable.type === 'slider') {
                             return \`
                                 <div style="margin: 10px 0;">
@@ -189,9 +189,9 @@ export default function SimulationViewer({ simulationCode, metadata }: Simulatio
                                            oninput="
                                                document.getElementById('\${variable.name}-value').textContent = this.value;
                                                const newVars = {...defaultVars, [\${variable.name}]: parseFloat(this.value)};
-                                               const newResult = runSimulation(newVars);
-                                               updateSimulation(newResult, canvas);
-                                               renderVisualization(newResult, canvas);
+                                               const newResult = window.runSimulation(newVars);
+                                               window.updateSimulation(newResult, canvas);
+                                               window.renderVisualization(newResult, canvas);
                                            ">
                                 </div>
                             \`;
@@ -210,6 +210,7 @@ export default function SimulationViewer({ simulationCode, metadata }: Simulatio
                 }
             } else {
                 console.error('Canvas element or mountSimulation function not found');
+                console.log('Available functions:', Object.keys(window).filter(key => key.includes('simulation') || key.includes('Simulation')));
                 document.getElementById('simulation-container').innerHTML = '<div class="error">Failed to initialize simulation: Canvas or mount function not available</div>';
             }
         } catch (error) {
