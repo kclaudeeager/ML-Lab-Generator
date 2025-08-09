@@ -49,6 +49,27 @@ export default function SimulationViewer({ simulationCode, metadata }: Simulatio
             background-color: white;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
+        #simulation-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            max-width: 900px;
+            width: 100%;
+            margin: 20px auto;
+        }
+        #simulation-canvas {
+            border: 1px solid #eee;
+            border-radius: 4px;
+            display: block;
+            margin: 20px auto;
+            background: white;
+            max-width: 100%;
+            height: auto;
+        }
+        #controls-container {
+            margin-top: 15px;
+        }
         .controls {
             margin: 20px 0;
             display: flex;
@@ -122,14 +143,75 @@ export default function SimulationViewer({ simulationCode, metadata }: Simulatio
         <p><strong>Library:</strong> ${metadata.rendering_library}</p>
     </div>
     
-    <div id="simulation-container"></div>
+    <div id="simulation-container">
+        <canvas id="simulation-canvas" width="800" height="600"></canvas>
+        <div id="controls-container"></div>
+    </div>
     
     <script>
         try {
-            // Wrap the simulation code in a try-catch block
-            (function() {
-                ${code}
-            })();
+            // Execute the simulation code
+            ${code}
+            
+            // Mount the simulation after the code is loaded
+            const canvas = document.getElementById('simulation-canvas');
+            const container = document.getElementById('simulation-container');
+            
+            if (canvas && typeof mountSimulation === 'function') {
+                // Default variables for the simulation
+                const defaultVars = {
+                    concentration: 0.1,
+                    temperature: 298,
+                    pH: 7,
+                    pOH: 7,
+                    indicatorColor: 'green'
+                };
+                
+                // Mount the simulation
+                const result = mountSimulation(canvas, defaultVars);
+                console.log('Simulation mounted successfully:', result);
+                
+                // Add basic controls if the simulation meta is available
+                if (typeof simulationMeta !== 'undefined' && simulationMeta.variables) {
+                    const controlsContainer = document.getElementById('controls-container');
+                    const controlsHTML = simulationMeta.variables.map(variable => {
+                        if (variable.type === 'slider') {
+                            return \`
+                                <div style="margin: 10px 0;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">\${variable.name}: <span id="\${variable.name}-value">\${variable.min || 0}</span></label>
+                                    <input type="range" 
+                                           id="\${variable.name}-input"
+                                           min="\${variable.min || 0}" 
+                                           max="\${variable.max || 100}" 
+                                           step="\${variable.step || 1}" 
+                                           value="\${variable.min || 0}"
+                                           style="width: 100%;"
+                                           oninput="
+                                               document.getElementById('\${variable.name}-value').textContent = this.value;
+                                               const newVars = {...defaultVars, [\${variable.name}]: parseFloat(this.value)};
+                                               const newResult = runSimulation(newVars);
+                                               updateSimulation(newResult, canvas);
+                                               renderVisualization(newResult, canvas);
+                                           ">
+                                </div>
+                            \`;
+                        }
+                        return '';
+                    }).join('');
+                    
+                    if (controlsHTML && controlsContainer) {
+                        controlsContainer.innerHTML = \`
+                            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 6px;">
+                                <h4 style="margin-top: 0;">Controls</h4>
+                                \${controlsHTML}
+                            </div>
+                        \`;
+                    }
+                }
+            } else {
+                console.error('Canvas element or mountSimulation function not found');
+                document.getElementById('simulation-container').innerHTML = '<div class="error">Failed to initialize simulation: Canvas or mount function not available</div>';
+            }
         } catch (error) {
             document.body.innerHTML += '<div class="error">Error running simulation: ' + error.message + '</div>';
             console.error('Simulation error:', error);
