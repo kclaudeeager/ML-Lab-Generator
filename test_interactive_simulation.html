@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Chemistry Simulation - Test</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: #f5f5f5;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    #simulation-container {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 20px;
+      max-width: 900px;
+      width: 100%;
+    }
+    #simulation-canvas {
+      border: 1px solid #eee;
+      border-radius: 4px;
+      display: block;
+      margin: 20px auto;
+      background: white;
+      max-width: 100%;
+      height: auto;
+    }
+    #controls-container {
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div id="simulation-container">
+    <canvas id="simulation-canvas" width="800" height="600"></canvas>
+    <div id="controls-container"></div>
+  </div>
+  <script>
+    // Interactive Chemistry Simulation with Working Controls
+    (() => {
+      var simulationMeta = {
+        title: "Interactive pH Chemistry Lab",
+        subject: "chemistry",
+        gradeLevel: "9-12",
+        variables: [
+          {
+            name: "concentration",
+            type: "slider",
+            min: 0.01,
+            max: 1.0,
+            step: 0.01,
+            unit: "M"
+          },
+          {
+            name: "temperature",
+            type: "slider",
+            min: 273,
+            max: 373,
+            step: 1,
+            unit: "K"
+          },
+          {
+            name: "indicatorType",
+            type: "dropdown",
+            options: ["Bromothymol Blue", "Phenolphthalein", "Methyl Orange"]
+          }
+        ],
+        outputs: [
+          { name: "pH", unit: "", description: "Calculated pH value" },
+          { name: "indicatorColor", description: "Visual indicator color" }
+        ]
+      };
+      
+      function initializeSimulation(canvas) {
+        canvas.width = 800;
+        canvas.height = 600;
+        const ctx = canvas.getContext("2d");
+        ctx.font = "18px Arial";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+      }
+      
+      function runSimulation(variables) {
+        const concentration = variables["concentration"] || 0.1;
+        const temperature = variables["temperature"] || 298;
+        const indicatorType = variables["indicatorType"] || "Bromothymol Blue";
+        
+        // Chemistry calculations
+        const Ka = 1.8e-5;
+        const pH = -Math.log10(Math.sqrt(Ka * concentration));
+        
+        // Indicator color logic
+        let indicatorColor;
+        if (indicatorType === "Bromothymol Blue") {
+          indicatorColor = pH < 6 ? "#FFFF00" : pH > 7.6 ? "#0000FF" : "#00FF00";
+        } else if (indicatorType === "Phenolphthalein") {
+          indicatorColor = pH < 8.3 ? "#FFFFFF" : "#FF69B4";
+        } else { // Methyl Orange
+          indicatorColor = pH < 3.1 ? "#FF0000" : pH > 4.4 ? "#FFFF00" : "#FFA500";
+        }
+        
+        return { pH, concentration, temperature, indicatorType, indicatorColor };
+      }
+      
+      function updateSimulation(data, canvas) {
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Background
+        ctx.fillStyle = "#f8f9fa";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Title
+        ctx.fillStyle = "black";
+        ctx.font = "24px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("Interactive pH Chemistry Lab", canvas.width / 2, 30);
+        
+        // Data display
+        ctx.font = "18px Arial";
+        ctx.textAlign = "left";
+        ctx.fillText(`pH: ${data.pH.toFixed(2)}`, 50, 80);
+        ctx.fillText(`Concentration: ${data.concentration.toFixed(2)} ${simulationMeta.variables[0].unit}`, 50, 110);
+        ctx.fillText(`Temperature: ${data.temperature} ${simulationMeta.variables[1].unit}`, 50, 140);
+        ctx.fillText(`Indicator: ${data.indicatorType}`, 50, 170);
+        
+        // pH Scale
+        ctx.fillText("pH Scale:", 50, 220);
+        for (let i = 0; i <= 14; i++) {
+          const x = 50 + i * 30;
+          const y = 250;
+          
+          // pH scale colors
+          let scaleColor;
+          if (i < 7) scaleColor = `hsl(${i * 10}, 70%, 50%)`; // Red to yellow
+          else if (i === 7) scaleColor = "#00FF00"; // Green for neutral
+          else scaleColor = `hsl(${200 + (i - 7) * 20}, 70%, 50%)`; // Blue
+          
+          ctx.fillStyle = scaleColor;
+          ctx.fillRect(x, y, 25, 30);
+          
+          // pH numbers
+          ctx.fillStyle = "black";
+          ctx.font = "12px Arial";
+          ctx.textAlign = "center";
+          ctx.fillText(i.toString(), x + 12, y + 45);
+          
+          // Current pH indicator
+          if (Math.abs(i - data.pH) < 0.5) {
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x - 2, y - 2, 29, 34);
+          }
+        }
+        
+        // Solution beaker
+        ctx.fillStyle = data.indicatorColor;
+        ctx.fillRect(500, 200, 150, 200);
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(500, 200, 150, 200);
+        
+        ctx.fillStyle = "black";
+        ctx.font = "16px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("Solution", 575, 190);
+        ctx.fillText(`Color: ${data.indicatorType}`, 575, 420);
+      }
+      
+      function renderVisualization(data, canvas) {
+        // Additional visual elements can be added here
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        
+        // Add molecule representation
+        ctx.fillStyle = "blue";
+        ctx.beginPath();
+        ctx.arc(575, 300, 10, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        ctx.fillStyle = "red";
+        ctx.beginPath();
+        ctx.arc(585, 310, 8, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        ctx.fillStyle = "black";
+        ctx.font = "10px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("H+", 575, 305);
+        ctx.fillText("OH-", 585, 315);
+      }
+      
+      function mountSimulation(canvas, initialVars) {
+        initializeSimulation(canvas);
+        const result = runSimulation(initialVars);
+        updateSimulation(result, canvas);
+        renderVisualization(result, canvas);
+        return result;
+      }
+
+      // Expose functions globally
+      window.simulationMeta = simulationMeta;
+      window.initializeSimulation = initializeSimulation;
+      window.runSimulation = runSimulation;
+      window.updateSimulation = updateSimulation;
+      window.renderVisualization = renderVisualization;
+      window.mountSimulation = mountSimulation;
+    })();
+
+    try {
+      const canvas = document.getElementById('simulation-canvas');
+      const container = document.getElementById('simulation-container');
+      
+      if (canvas && typeof window.mountSimulation === 'function') {
+        // Initialize default values from simulation metadata
+        const defaultVars = {};
+        if (typeof window.simulationMeta !== 'undefined' && window.simulationMeta.variables) {
+          window.simulationMeta.variables.forEach(variable => {
+            if (variable.type === 'slider') {
+              defaultVars[variable.name] = variable.min || 0;
+            } else if (variable.type === 'dropdown' && variable.options) {
+              defaultVars[variable.name] = variable.options[0];
+            }
+          });
+        }
+        
+        // Mount the simulation
+        const result = window.mountSimulation(canvas, defaultVars);
+        console.log('Simulation mounted successfully:', result);
+        
+        // Add controls
+        if (typeof window.simulationMeta !== 'undefined' && window.simulationMeta.variables) {
+          const controlsContainer = document.getElementById('controls-container');
+          const controlsHTML = window.simulationMeta.variables.map(variable => {
+            if (variable.type === 'slider') {
+              const initialValue = variable.min || 0;
+              return `
+                <div style="margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                  <label style="display: block; margin-bottom: 5px; font-weight: bold;">${variable.name} (${variable.unit || ''}): <span id="${variable.name}-value">${initialValue}</span></label>
+                  <input type="range" 
+                         id="${variable.name}-input"
+                         min="${variable.min || 0}" 
+                         max="${variable.max || 100}" 
+                         step="${variable.step || 1}" 
+                         value="${initialValue}"
+                         style="width: 100%;"
+                         oninput="
+                           document.getElementById('${variable.name}-value').textContent = this.value;
+                           const newVars = {...defaultVars, ['${variable.name}']: parseFloat(this.value)};
+                           const newResult = window.runSimulation(newVars);
+                           window.updateSimulation(newResult, canvas);
+                           window.renderVisualization(newResult, canvas);
+                         ">
+                </div>
+              `;
+            } else if (variable.type === 'dropdown' && variable.options) {
+              const options = variable.options.map(option => 
+                `<option value="${option}">${option}</option>`
+              ).join('');
+              return `
+                <div style="margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                  <label style="display: block; margin-bottom: 5px; font-weight: bold;">${variable.name}:</label>
+                  <select id="${variable.name}-input" 
+                          style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+                          onchange="
+                            const newVars = {...defaultVars, ['${variable.name}']: this.value};
+                            const newResult = window.runSimulation(newVars);
+                            window.updateSimulation(newResult, canvas);
+                            window.renderVisualization(newResult, canvas);
+                          ">
+                    ${options}
+                  </select>
+                </div>
+              `;
+            }
+            return '';
+          }).join('');
+          
+          if (controlsHTML && controlsContainer) {
+            controlsContainer.innerHTML = `
+              <div style="margin-top: 20px; padding: 15px; background: #e8f4fd; border-radius: 6px; border-left: 4px solid #4F46E5;">
+                <h4 style="margin-top: 0; color: #1d4ed8;">Interactive Controls</h4>
+                ${controlsHTML}
+              </div>
+            `;
+          }
+        }
+      } else {
+        console.error('Canvas element or mountSimulation function not found');
+        document.getElementById('simulation-container').innerHTML = '<div style="color: red; padding: 10px;">Failed to initialize simulation</div>';
+      }
+    } catch (error) {
+      document.body.innerHTML += '<div style="color: red; padding: 10px; background: #ffebee; border-radius: 4px; margin: 10px;">Error: ' + error.message + '</div>';
+      console.error('Simulation error:', error);
+    }
+  </script>
+</body>
+</html>

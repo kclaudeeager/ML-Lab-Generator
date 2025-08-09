@@ -162,6 +162,17 @@ export default function mountSimulation(canvas: HTMLCanvasElement, initialVars: 
   return result;
 }
 
+CANVAS SIZING RULES:
+- initializeSimulation should set canvas.width = 800 and canvas.height = 600 to match HTML
+- updateSimulation should clear and redraw the entire canvas with current data
+- renderVisualization should add visual elements like graphs, scales, indicators
+
+INTERACTIVE UPDATE PATTERN:
+When controls change, this sequence should happen:
+1. runSimulation(newVariables) -> returns new data
+2. updateSimulation(newData, canvas) -> updates display
+3. renderVisualization(newData, canvas) -> adds visual elements
+
 CORRECT VARIABLE PATTERN EXAMPLE:
 In runSimulation function, ALL variables must be defined before use:
 - const concentration = variables["concentration"] || 0.1;

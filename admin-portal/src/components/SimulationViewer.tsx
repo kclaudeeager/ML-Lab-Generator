@@ -159,13 +159,18 @@ export default function SimulationViewer({ simulationCode, metadata }: Simulatio
             
             if (canvas && typeof window.mountSimulation === 'function') {
                 // Default variables for the simulation
-                const defaultVars = {
-                    concentration: 0.1,
-                    temperature: 298,
-                    pH: 7,
-                    pOH: 7,
-                    indicatorColor: 'green'
-                };
+                const defaultVars = {};
+                
+                // Initialize default values from simulation metadata
+                if (typeof window.simulationMeta !== 'undefined' && window.simulationMeta.variables) {
+                  window.simulationMeta.variables.forEach(variable => {
+                    if (variable.type === 'slider') {
+                      defaultVars[variable.name] = variable.min || 0;
+                    } else if (variable.type === 'dropdown' && variable.options) {
+                      defaultVars[variable.name] = variable.options[0];
+                    }
+                  });
+                }
                 
                 // Mount the simulation
                 const result = window.mountSimulation(canvas, defaultVars);
@@ -176,23 +181,43 @@ export default function SimulationViewer({ simulationCode, metadata }: Simulatio
                     const controlsContainer = document.getElementById('controls-container');
                     const controlsHTML = window.simulationMeta.variables.map(variable => {
                         if (variable.type === 'slider') {
+                            const initialValue = variable.min || 0;
                             return \`
                                 <div style="margin: 10px 0;">
-                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">\${variable.name}: <span id="\${variable.name}-value">\${variable.min || 0}</span></label>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">\${variable.name} (\${variable.unit || ''}): <span id="\${variable.name}-value">\${initialValue}</span></label>
                                     <input type="range" 
                                            id="\${variable.name}-input"
                                            min="\${variable.min || 0}" 
                                            max="\${variable.max || 100}" 
                                            step="\${variable.step || 1}" 
-                                           value="\${variable.min || 0}"
+                                           value="\${initialValue}"
                                            style="width: 100%;"
                                            oninput="
                                                document.getElementById('\${variable.name}-value').textContent = this.value;
-                                               const newVars = {...defaultVars, [\${variable.name}]: parseFloat(this.value)};
+                                               const newVars = {...defaultVars, ['\${variable.name}']: parseFloat(this.value)};
                                                const newResult = window.runSimulation(newVars);
                                                window.updateSimulation(newResult, canvas);
                                                window.renderVisualization(newResult, canvas);
                                            ">
+                                </div>
+                            \`;
+                        } else if (variable.type === 'dropdown' && variable.options) {
+                            const options = variable.options.map(option => 
+                                \`<option value="\${option}">\${option}</option>\`
+                            ).join('');
+                            return \`
+                                <div style="margin: 10px 0;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">\${variable.name}:</label>
+                                    <select id="\${variable.name}-input" 
+                                            style="width: 100%; padding: 5px;"
+                                            onchange="
+                                                const newVars = {...defaultVars, ['\${variable.name}']: this.value};
+                                                const newResult = window.runSimulation(newVars);
+                                                window.updateSimulation(newResult, canvas);
+                                                window.renderVisualization(newResult, canvas);
+                                            ">
+                                        \${options}
+                                    </select>
                                 </div>
                             \`;
                         }
