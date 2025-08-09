@@ -816,9 +816,98 @@ declare global {
     min(...values: number[]): number;
     random(): number;
   }
+  
+  // Promise support
+  interface Promise<T> {
+    then<TResult1 = T, TResult2 = never>(
+      onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null,
+      onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null
+    ): Promise<TResult1 | TResult2>;
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): Promise<T | TResult>;
+  }
+  
+  interface PromiseLike<T> {
+    then<TResult1 = T, TResult2 = never>(
+      onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null,
+      onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null
+    ): PromiseLike<TResult1 | TResult2>;
+  }
+  
+  interface PromiseConstructor {
+    new <T>(executor: (resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => void): Promise<T>;
+    resolve<T>(value: T | PromiseLike<T>): Promise<T>;
+    resolve(): Promise<void>;
+    reject<T = never>(reason?: any): Promise<T>;
+    all<T>(values: readonly (T | PromiseLike<T>)[]): Promise<T[]>;
+    race<T>(values: readonly (T | PromiseLike<T>)[]): Promise<T>;
+  }
+  
+  // Typed Arrays
+  interface Uint8ClampedArray {
+    readonly buffer: ArrayBuffer;
+    readonly byteLength: number;
+    readonly byteOffset: number;
+    readonly length: number;
+    [index: number]: number;
+    copyWithin(target: number, start: number, end?: number): this;
+    every(predicate: (value: number, index: number, array: Uint8ClampedArray) => boolean, thisArg?: any): boolean;
+    fill(value: number, start?: number, end?: number): this;
+    filter(predicate: (value: number, index: number, array: Uint8ClampedArray) => boolean, thisArg?: any): Uint8ClampedArray;
+    find(predicate: (value: number, index: number, obj: Uint8ClampedArray) => boolean, thisArg?: any): number | undefined;
+    findIndex(predicate: (value: number, index: number, obj: Uint8ClampedArray) => boolean, thisArg?: any): number;
+    forEach(callbackfn: (value: number, index: number, array: Uint8ClampedArray) => void, thisArg?: any): void;
+    indexOf(searchElement: number, fromIndex?: number): number;
+    join(separator?: string): string;
+    lastIndexOf(searchElement: number, fromIndex?: number): number;
+    map(callbackfn: (value: number, index: number, array: Uint8ClampedArray) => number, thisArg?: any): Uint8ClampedArray;
+    reduce(callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Uint8ClampedArray) => number): number;
+    reduce<U>(callbackfn: (previousValue: U, currentValue: number, currentIndex: number, array: Uint8ClampedArray) => U, initialValue: U): U;
+    reduceRight(callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: Uint8ClampedArray) => number): number;
+    reduceRight<U>(callbackfn: (previousValue: U, currentValue: number, currentIndex: number, array: Uint8ClampedArray) => U, initialValue: U): U;
+    reverse(): Uint8ClampedArray;
+    set(array: ArrayLike<number>, offset?: number): void;
+    slice(start?: number, end?: number): Uint8ClampedArray;
+    some(predicate: (value: number, index: number, array: Uint8ClampedArray) => boolean, thisArg?: any): boolean;
+    sort(compareFn?: (a: number, b: number) => number): this;
+    subarray(begin?: number, end?: number): Uint8ClampedArray;
+    toLocaleString(): string;
+    toString(): string;
+    valueOf(): Uint8ClampedArray;
+  }
+  
+  interface Uint8ClampedArrayConstructor {
+    new (length: number): Uint8ClampedArray;
+    new (array: ArrayLike<number>): Uint8ClampedArray;
+    new (buffer: ArrayBuffer, byteOffset?: number, length?: number): Uint8ClampedArray;
+    readonly prototype: Uint8ClampedArray;
+    BYTES_PER_ELEMENT: number;
+    of(...items: number[]): Uint8ClampedArray;
+    from(arrayLike: ArrayLike<number>): Uint8ClampedArray;
+    from<T>(arrayLike: ArrayLike<T>, mapfn: (v: T, k: number) => number, thisArg?: any): Uint8ClampedArray;
+  }
+  
+  interface ArrayBuffer {
+    readonly byteLength: number;
+    slice(begin: number, end?: number): ArrayBuffer;
+  }
+  
+  interface ArrayBufferConstructor {
+    new (byteLength: number): ArrayBuffer;
+    readonly prototype: ArrayBuffer;
+    isView(arg: any): boolean;
+  }
+  
+  interface ArrayLike<T> {
+    readonly length: number;
+    readonly [n: number]: T;
+  }
+  
   var Math: Math;
   var Number: NumberConstructor;
   var String: StringConstructor;
+  var Promise: PromiseConstructor;
+  var Uint8ClampedArray: Uint8ClampedArrayConstructor;
+  var ArrayBuffer: ArrayBufferConstructor;
   var parseFloat: (string: string) => number;
   var parseInt: (string: string, radix?: number) => number;
   var isNaN: (value: any) => boolean;
@@ -974,6 +1063,12 @@ interface ImageData {
   readonly width: number;
 }
 
+interface ImageDataConstructor {
+  new (width: number, height: number): ImageData;
+  new (data: Uint8ClampedArray, width: number, height?: number): ImageData;
+  readonly prototype: ImageData;
+}
+
 interface CanvasGradient {
   addColorStop(offset: number, color: string): void;
 }
@@ -998,6 +1093,8 @@ interface DOMMatrix2DInit {
 }
 
 type CanvasImageSource = HTMLImageElement | HTMLVideoElement | HTMLCanvasElement | ImageBitmap;
+
+declare var ImageData: ImageDataConstructor;
 
 // Define requestAnimationFrame for animations
 declare var requestAnimationFrame: (callback: FrameRequestCallback) => number;
