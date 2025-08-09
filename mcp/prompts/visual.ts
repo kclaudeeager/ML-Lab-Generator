@@ -58,11 +58,42 @@ MANDATORY REQUIREMENTS:
 
 2. COMPLETE EXECUTABLE STRUCTURE - Your code must follow this exact pattern:
    - Start with: export const simulationMeta = { ... }
+   - CRITICAL: simulationMeta MUST include a variables array with interactive controls
    - Include: export function initializeSimulation(canvas: HTMLCanvasElement): void
    - Include: export function runSimulation(variables: Record<string, any>): any
    - Include: export function updateSimulation(variables: Record<string, any>, canvas: HTMLCanvasElement): void
    - Include: export function renderVisualization(data: any, canvas: HTMLCanvasElement): void
    - End with: export default function mountSimulation(canvas: HTMLCanvasElement, initialVars: Record<string, any>)
+
+REQUIRED SIMULATION METADATA STRUCTURE:
+export const simulationMeta = {
+  title: "Your Lab Title",
+  subject: "chemistry|physics|biology",
+  gradeLevel: "9-12",
+  variables: [
+    {
+      name: "concentration",
+      type: "slider", 
+      min: 0.01,
+      max: 1.0,
+      step: 0.01,
+      unit: "M"
+    },
+    {
+      name: "temperature",
+      type: "slider",
+      min: 273,
+      max: 373,
+      step: 1,
+      unit: "K"
+    }
+    // Add more interactive variables as needed
+  ],
+  outputs: [
+    { name: "pH", unit: "", description: "Calculated pH value" },
+    { name: "indicatorColor", description: "Visual indicator color" }
+  ]
+};
 
 3. VISUAL REQUIREMENTS:
    - Professional UI with proper colors, fonts, layouts
@@ -90,10 +121,46 @@ MANDATORY REQUIREMENTS:
    - NO shorthand object properties with undefined variables: { indicatorColor } ❌
    - NO incomplete return statements with missing variable definitions
 
-SCIENTIFIC CALCULATION EXAMPLES:
-For Chemistry pH: const pH = -Math.log10(concentration * Ka)
-For Physics motion: const position = initialVelocity * time + 0.5 * acceleration * time * time
-For Biology kinetics: const rate = (Vmax * substrate) / (Km + substrate)
+FUNCTION IMPLEMENTATION PATTERNS:
+
+renderVisualization function should NOT try to draw image data. Instead, it should draw directly on canvas:
+CORRECT:
+export function renderVisualization(data: any, canvas: HTMLCanvasElement): void {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  
+  // Draw scientific visualizations directly on canvas
+  // Example: pH scale, molecular diagrams, graphs, etc.
+  ctx.fillStyle = data.indicatorColor || "gray";
+  ctx.fillRect(50, 50, 100, 100);
+  ctx.fillStyle = "black";
+  ctx.fillText("pH: " + (data.pH ? data.pH.toFixed(2) : "N/A"), 50, 30);
+}
+
+FORBIDDEN:
+export function renderVisualization(data: any, canvas: HTMLCanvasElement): void {
+  ctx.drawImage(data.visualization, 0, 0); // ❌ NEVER DO THIS
+}
+
+updateSimulation function should update the display with current data:
+export function updateSimulation(variables: Record<string, any>, canvas: HTMLCanvasElement): void {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Draw current simulation state
+  ctx.fillStyle = "black";
+  ctx.fillText("Current pH: " + (variables.pH ? variables.pH.toFixed(2) : "N/A"), 10, 20);
+}
+
+mountSimulation function should tie everything together:
+export default function mountSimulation(canvas: HTMLCanvasElement, initialVars: Record<string, any>) {
+  initializeSimulation(canvas);
+  const result = runSimulation(initialVars);
+  updateSimulation(result, canvas);
+  renderVisualization(result, canvas);
+  return result;
+}
 
 CORRECT VARIABLE PATTERN EXAMPLE:
 In runSimulation function, ALL variables must be defined before use:
