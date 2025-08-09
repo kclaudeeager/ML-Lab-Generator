@@ -837,19 +837,167 @@ interface HTMLCanvasElement {
   getContext(contextId: "2d"): CanvasRenderingContext2D | null;
 }
 
+interface HTMLImageElement {
+  src: string;
+  width: number;
+  height: number;
+  complete: boolean;
+  naturalWidth: number;
+  naturalHeight: number;
+}
+
+interface HTMLVideoElement {
+  src: string;
+  width: number;
+  height: number;
+  videoWidth: number;
+  videoHeight: number;
+  currentTime: number;
+  duration: number;
+  paused: boolean;
+  play(): Promise<void>;
+  pause(): void;
+}
+
+interface ImageBitmap {
+  readonly width: number;
+  readonly height: number;
+  close(): void;
+}
+
 interface CanvasRenderingContext2D {
+  // Drawing rectangles
   clearRect(x: number, y: number, w: number, h: number): void;
   fillRect(x: number, y: number, w: number, h: number): void;
+  strokeRect(x: number, y: number, w: number, h: number): void;
+  
+  // Drawing text
   fillText(text: string, x: number, y: number, maxWidth?: number): void;
+  strokeText(text: string, x: number, y: number, maxWidth?: number): void;
+  measureText(text: string): TextMetrics;
+  
+  // Line styles
+  lineWidth: number;
+  lineCap: CanvasLineCap;
+  lineJoin: CanvasLineJoin;
+  miterLimit: number;
+  
+  // Fill and stroke styles
   fillStyle: string | CanvasGradient | CanvasPattern;
+  strokeStyle: string | CanvasGradient | CanvasPattern;
+  
+  // Shadows
+  shadowBlur: number;
+  shadowColor: string;
+  shadowOffsetX: number;
+  shadowOffsetY: number;
+  
+  // Text styles
   font: string;
   textAlign: CanvasTextAlign;
   textBaseline: CanvasTextBaseline;
+  
+  // Paths
+  beginPath(): void;
+  closePath(): void;
+  moveTo(x: number, y: number): void;
+  lineTo(x: number, y: number): void;
+  bezierCurveTo(cp1x: number, cp1y: number, cp2x: number, cp2y: number, x: number, y: number): void;
+  quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void;
+  arc(x: number, y: number, radius: number, startAngle: number, endAngle: number, anticlockwise?: boolean): void;
+  arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void;
+  ellipse(x: number, y: number, radiusX: number, radiusY: number, rotation: number, startAngle: number, endAngle: number, anticlockwise?: boolean): void;
+  rect(x: number, y: number, w: number, h: number): void;
+  
+  // Drawing paths
+  fill(fillRule?: CanvasFillRule): void;
+  stroke(): void;
+  clip(fillRule?: CanvasFillRule): void;
+  isPointInPath(x: number, y: number, fillRule?: CanvasFillRule): boolean;
+  isPointInStroke(x: number, y: number): boolean;
+  
+  // Transformations
+  rotate(angle: number): void;
+  scale(x: number, y: number): void;
+  translate(x: number, y: number): void;
+  transform(a: number, b: number, c: number, d: number, e: number, f: number): void;
+  setTransform(a: number, b: number, c: number, d: number, e: number, f: number): void;
+  resetTransform(): void;
+  
+  // Compositing
+  globalAlpha: number;
+  globalCompositeOperation: string;
+  
+  // Drawing images
+  drawImage(image: CanvasImageSource, dx: number, dy: number): void;
+  drawImage(image: CanvasImageSource, dx: number, dy: number, dw: number, dh: number): void;
+  drawImage(image: CanvasImageSource, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number): void;
+  
+  // Pixel manipulation
+  createImageData(sw: number, sh: number): ImageData;
+  createImageData(imagedata: ImageData): ImageData;
+  getImageData(sx: number, sy: number, sw: number, sh: number): ImageData;
+  putImageData(imagedata: ImageData, dx: number, dy: number): void;
+  putImageData(imagedata: ImageData, dx: number, dy: number, dirtyX: number, dirtyY: number, dirtyWidth: number, dirtyHeight: number): void;
+  
+  // State management
+  save(): void;
+  restore(): void;
 }
 
 type CanvasTextAlign = "start" | "end" | "left" | "right" | "center";
 type CanvasTextBaseline = "top" | "hanging" | "middle" | "alphabetic" | "ideographic" | "bottom";
+type CanvasLineCap = "butt" | "round" | "square";
+type CanvasLineJoin = "bevel" | "round" | "miter";
+type CanvasFillRule = "nonzero" | "evenodd";
 type FrameRequestCallback = (time: number) => void;
+
+// Additional Canvas-related interfaces
+interface TextMetrics {
+  width: number;
+  actualBoundingBoxLeft: number;
+  actualBoundingBoxRight: number;
+  fontBoundingBoxAscent: number;
+  fontBoundingBoxDescent: number;
+  actualBoundingBoxAscent: number;
+  actualBoundingBoxDescent: number;
+  emHeightAscent: number;
+  emHeightDescent: number;
+  hangingBaseline: number;
+  alphabeticBaseline: number;
+  ideographicBaseline: number;
+}
+
+interface ImageData {
+  readonly data: Uint8ClampedArray;
+  readonly height: number;
+  readonly width: number;
+}
+
+interface CanvasGradient {
+  addColorStop(offset: number, color: string): void;
+}
+
+interface CanvasPattern {
+  setTransform(transform?: DOMMatrix2DInit): void;
+}
+
+interface DOMMatrix2DInit {
+  a?: number;
+  b?: number;
+  c?: number;
+  d?: number;
+  e?: number;
+  f?: number;
+  m11?: number;
+  m12?: number;
+  m21?: number;
+  m22?: number;
+  m41?: number;
+  m42?: number;
+}
+
+type CanvasImageSource = HTMLImageElement | HTMLVideoElement | HTMLCanvasElement | ImageBitmap;
 
 // Define requestAnimationFrame for animations
 declare var requestAnimationFrame: (callback: FrameRequestCallback) => number;

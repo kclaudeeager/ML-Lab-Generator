@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chemistry Simulation - Fixed</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: #f5f5f5;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    
+    #simulation-container {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 20px;
+      max-width: 900px;
+      width: 100%;
+    }
+    
+    h1, h3 {
+      text-align: center;
+      color: #333;
+      margin: 10px 0;
+    }
+    
+    canvas {
+      border: 1px solid #eee;
+      border-radius: 4px;
+      display: block;
+      margin: 20px auto;
+      background: #fafafa;
+    }
+    
+    .controls {
+      margin: 20px 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 6px;
+    }
+    
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    
+    .control-group label {
+      font-weight: 600;
+      color: #555;
+      font-size: 14px;
+    }
+    
+    .control-group small {
+      color: #777;
+      font-size: 11px;
+      font-style: italic;
+      margin-top: 2px;
+    }
+    
+    input[type="range"], select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      background: white;
+      transition: border-color 0.2s ease;
+    }
+    
+    input[type="range"]:focus, select:focus {
+      outline: none;
+      border-color: #4F46E5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+    
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      background: #ddd;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      background: #4F46E5;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    
+    .output-area {
+      margin-top: 20px;
+      padding: 15px;
+      background: #e8f4fd;
+      border-radius: 6px;
+      border-left: 4px solid #4F46E5;
+    }
+    
+    .output-area h3 {
+      margin-top: 0;
+      color: #1d4ed8;
+    }
+    
+    #outputs {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .output-item {
+      background: white;
+      padding: 15px;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .output-item strong {
+      color: #1d4ed8;
+      font-size: 16px;
+    }
+    
+    .output-item small {
+      color: #6b7280;
+      font-size: 12px;
+    }
+    
+    .educational-info {
+      background: #f8fafc;
+      padding: 15px;
+      border-radius: 6px;
+      border-left: 4px solid #10b981;
+    }
+    
+    .educational-info h4 {
+      margin-top: 0;
+      color: #065f46;
+      font-size: 14px;
+    }
+    
+    .educational-info ul {
+      margin: 8px 0 0 0;
+      padding-left: 20px;
+    }
+    
+    .educational-info li {
+      font-size: 13px;
+      color: #374151;
+      margin-bottom: 5px;
+    }
+</style>
+</head>
+<body>
+  <div id="simulation-container">
+    
+    <h1>Acid-Base Chemistry Simulation Lab</h1>
+    
+    <div class="controls">
+        
+        <div class="control-group">
+            <label for="Concentration_M">Concentration (M): <span id="Concentration_M_value">0.01</span></label>
+            <input type="range" id="Concentration_M" min="0.01" max="1" step="0.01" value="0.01">
+            <small>Range: 0.01 - 1.00 M</small>
+        </div>
+        
+        <div class="control-group">
+            <label for="Acid_Type">Acid Type:</label>
+            <select id="Acid_Type">
+                <option value="HCl">HCl (Strong Acid)</option>
+                <option value="CH3COOH">CH₃COOH (Weak Acid)</option>
+                <option value="HNO3">HNO₃ (Strong Acid)</option>
+            </select>
+            <small>Ka values: HCl/HNO₃ = ∞, CH₃COOH = 1.8×10⁻⁵</small>
+        </div>
+        
+        <div class="control-group">
+            <label for="Indicator">Indicator:</label>
+            <select id="Indicator">
+                <option value="Phenolphthalein">Phenolphthalein (pH 8-10)</option>
+                <option value="Bromothymol Blue">Bromothymol Blue (pH 6-7.6)</option>
+            </select>
+            <small>Transition ranges shown in parentheses</small>
+        </div>
+        
+    </div>
+    
+    <canvas id="simulationCanvas" width="800" height="400"></canvas>
+    
+    
+<div class="output-area">
+    <h3>📊 Results & Analysis</h3>
+    <div id="outputs">
+        <div class="output-item">
+            <strong>pH:</strong> <span id="pH_output">-</span>
+            <br><small>Measure of acidity/basicity</small>
+        </div>
+        <div class="output-item">
+            <strong>[H⁺]:</strong> <span id="H_output">-</span> M
+            <br><small>Hydrogen ion concentration</small>
+        </div>
+        <div class="output-item">
+            <strong>Solution Type:</strong> <span id="solution_type">-</span>
+            <br><small>Acidic, neutral, or basic</small>
+        </div>
+        <div class="output-item">
+            <strong>Indicator Color:</strong> <span id="indicator_color" style="display: inline-block; width: 20px; height: 20px; border: 1px solid #ccc; border-radius: 50%; margin-left: 5px;"></span>
+            <br><small>Visual indicator result</small>
+        </div>
+    </div>
+    
+    <div class="educational-info">
+        <h4>💡 Educational Notes:</h4>
+        <ul id="educational_notes">
+            <li>Strong acids (HCl, HNO₃) completely dissociate in water</li>
+            <li>Weak acids (CH₃COOH) only partially dissociate</li>
+            <li>pH scale ranges from 0-14 (acidic to basic)</li>
+            <li>Indicators change color at specific pH ranges</li>
+        </ul>
+    </div>
+</div>
+    
+  </div>
+  
+  <script>
+    (() => {
+      
+    // Enhanced Chemistry Simulation with Accurate Calculations
+    class ChemistrySimulation {
+        constructor(canvasId) {
+            this.canvas = document.getElementById(canvasId);
+            this.ctx = this.canvas.getContext('2d');
+            this.lastUpdate = performance.now();
+            this.animationId = null;
+            
+            // Accurate acid dissociation constants
+            this.ACID_CONSTANTS = {
+                "HCl": { type: "strong", Ka: Infinity, name: "Hydrochloric acid" },
+                "HNO3": { type: "strong", Ka: Infinity, name: "Nitric acid" },
+                "CH3COOH": { type: "weak", Ka: 1.80e-5, name: "Acetic acid" }
+            };
+            
+            // Accurate indicator properties
+            this.INDICATORS = {
+                "Phenolphthalein": {
+                    transitionRange: [8.0, 10.0],
+                    acidColor: [255, 255, 255, 0],
+                    baseColor: [255, 20, 147, 255],
+                    transitionType: "sharp"
+                },
+                "Bromothymol Blue": {
+                    transitionRange: [6.0, 7.6],
+                    acidColor: [255, 255, 0, 255],
+                    baseColor: [0, 0, 255, 255],
+                    transitionType: "gradual",
+                    middleColor: [0, 255, 0, 255]
+                }
+            };
+            
+            this.WATER_KW = 1e-14;
+            this.state = {
+                concentration: 0.01,
+                acidType: 'HCl',
+                indicator: 'Phenolphthalein'
+            };
+            
+            this.initializeCanvas();
+        }
+        
+        initializeCanvas() {
+            this.canvas.width = 800;
+            this.canvas.height = 400;
+            this.renderSimulation();
+        }
+        
+        calculatePH(acidType, concentration) {
+            const acid = this.ACID_CONSTANTS[acidType];
+            if (!acid) return 7.0;
+            
+            if (acid.type === 'strong') {
+                return this.calculateStrongAcidPH(concentration);
+            } else {
+                return this.calculateWeakAcidPH(concentration, acid.Ka);
+            }
+        }
+        
+        calculateStrongAcidPH(concentration) {
+            if (concentration <= 0) return 7.0;
+            const hPlus = Math.max(concentration, Math.sqrt(this.WATER_KW));
+            return -Math.log10(hPlus);
+        }
+        
+        calculateWeakAcidPH(concentration, Ka) {
+            if (concentration <= 0) return 7.0;
+            
+            // Quadratic equation: Ka = x²/(C-x) where x = [H+]
+            const a = 1;
+            const b = Ka;
+            const c = -Ka * concentration;
+            
+            const discriminant = b * b - 4 * a * c;
+            if (discriminant < 0) return 7.0;
+            
+            const hPlus = (-b + Math.sqrt(discriminant)) / (2 * a);
+            return -Math.log10(Math.max(hPlus, 1e-14));
+        }
+        
+        getIndicatorColor(indicatorName, pH) {
+            const indicator = this.INDICATORS[indicatorName];
+            if (!indicator) return 'rgb(128, 128, 128)';
+            
+            const [lowPH, highPH] = indicator.transitionRange;
+            
+            if (pH < lowPH) {
+                return this.rgbaToCSS(indicator.acidColor);
+            } else if (pH > highPH) {
+                return this.rgbaToCSS(indicator.baseColor);
+            } else {
+                // Smooth transition zone
+                const factor = (pH - lowPH) / (highPH - lowPH);
+                
+                if (indicatorName === 'Bromothymol Blue' && indicator.middleColor) {
+                    if (factor < 0.5) {
+                        return this.interpolateColor(indicator.acidColor, indicator.middleColor, factor * 2);
+                    } else {
+                        return this.interpolateColor(indicator.middleColor, indicator.baseColor, (factor - 0.5) * 2);
+                    }
+                } else {
+                    return this.interpolateColor(indicator.acidColor, indicator.baseColor, factor);
+                }
+            }
+        }
+        
+        interpolateColor(color1, color2, factor) {
+            factor = Math.max(0, Math.min(1, factor));
+            const result = color1.map((c1, i) => {
+                const c2 = color2[i];
+                return Math.round(c1 + (c2 - c1) * factor);
+            });
+            return this.rgbaToCSS(result);
+        }
+        
+        rgbaToCSS(rgba) {
+            const [r, g, b, a] = rgba;
+            return a < 255 ? `rgba(${r}, ${g}, ${b}, ${a/255})` : `rgb(${r}, ${g}, ${b})`;
+        }
+        
+        renderSimulation() {
+            const ctx = this.ctx;
+            const width = this.canvas.width;
+            const height = this.canvas.height;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+            
+            // Calculate current pH
+            const pH = this.calculatePH(this.state.acidType, this.state.concentration);
+            const indicatorColor = this.getIndicatorColor(this.state.indicator, pH);
+            
+            // Draw enhanced beaker visualization
+            this.drawBeaker(ctx, indicatorColor, pH);
+            
+            // Draw pH scale
+            this.drawPHScale(ctx, pH);
+            
+            // Update output displays
+            this.updateOutputs(pH);
+        }
+        
+        drawBeaker(ctx, solutionColor, pH) {
+            const centerX = this.canvas.width / 2 + 50;
+            const centerY = this.canvas.height / 2;
+            const beakerWidth = 200;
+            const beakerHeight = 150;
+            
+            // Draw beaker outline with rounded bottom
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(centerX - beakerWidth/2, centerY - beakerHeight/2);
+            ctx.lineTo(centerX - beakerWidth/2, centerY + beakerHeight/2 - 20);
+            ctx.quadraticCurveTo(centerX - beakerWidth/2, centerY + beakerHeight/2, 
+                               centerX - beakerWidth/2 + 20, centerY + beakerHeight/2);
+            ctx.lineTo(centerX + beakerWidth/2 - 20, centerY + beakerHeight/2);
+            ctx.quadraticCurveTo(centerX + beakerWidth/2, centerY + beakerHeight/2,
+                               centerX + beakerWidth/2, centerY + beakerHeight/2 - 20);
+            ctx.lineTo(centerX + beakerWidth/2, centerY - beakerHeight/2);
+            ctx.stroke();
+            
+            // Fill with solution
+            ctx.fillStyle = solutionColor;
+            ctx.fillRect(centerX - beakerWidth/2 + 4, centerY - beakerHeight/2 + 4, 
+                        beakerWidth - 8, beakerHeight - 25);
+            
+            // Add beaker label
+            ctx.fillStyle = '#333';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(this.ACID_CONSTANTS[this.state.acidType].name, centerX, centerY + beakerHeight/2 + 25);
+            ctx.fillText(`${this.state.concentration} M`, centerX, centerY + beakerHeight/2 + 45);
+        }
+        
+        drawPHScale(ctx, pH) {
+            const scaleX = 50;
+            const scaleY = 50;
+            const scaleHeight = 280;
+            const scaleWidth = 30;
+            
+            // Draw pH scale background
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(scaleX, scaleY, scaleWidth, scaleHeight);
+            
+            // Draw pH gradient
+            for (let i = 0; i <= 14; i++) {
+                const y = scaleY + (i / 14) * scaleHeight;
+                const hue = (14 - i) * 240 / 14; // Red to blue spectrum
+                ctx.fillStyle = `hsl(${hue}, 70%, 50%)`;
+                ctx.fillRect(scaleX + 2, y, scaleWidth - 4, scaleHeight / 14);
+            }
+            
+            // Draw pH markers
+            ctx.fillStyle = '#000';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'right';
+            for (let i = 0; i <= 14; i += 2) {
+                const y = scaleY + (i / 14) * scaleHeight;
+                ctx.fillText(i.toString(), scaleX - 5, y + 3);
+            }
+            
+            // Draw current pH indicator
+            const indicatorY = scaleY + (pH / 14) * scaleHeight;
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.moveTo(scaleX + scaleWidth + 5, indicatorY);
+            ctx.lineTo(scaleX + scaleWidth + 15, indicatorY - 5);
+            ctx.lineTo(scaleX + scaleWidth + 15, indicatorY + 5);
+            ctx.fill();
+            
+            // Labels
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('pH Scale', scaleX, scaleY - 15);
+            ctx.fillText(`pH: ${pH.toFixed(2)}`, scaleX + scaleWidth + 20, indicatorY + 4);
+        }
+        
+        updateOutputs(pH) {
+            const hPlusConcentration = Math.pow(10, -pH);
+            
+            // Update basic outputs
+            if (document.getElementById('pH_output')) {
+                document.getElementById('pH_output').textContent = pH.toFixed(2);
+            }
+            if (document.getElementById('H_output')) {
+                document.getElementById('H_output').textContent = hPlusConcentration.toExponential(2);
+            }
+            
+            // Update solution type
+            if (document.getElementById('solution_type')) {
+                let solutionType = '';
+                if (pH < 7) solutionType = 'Acidic';
+                else if (pH > 7) solutionType = 'Basic';
+                else solutionType = 'Neutral';
+                document.getElementById('solution_type').textContent = solutionType;
+            }
+            
+            // Update indicator color display
+            if (document.getElementById('indicator_color')) {
+                const color = this.getIndicatorColor(this.state.indicator, pH);
+                document.getElementById('indicator_color').style.backgroundColor = color;
+            }
+        }
+        
+        updateState(newState) {
+            this.state = { ...this.state, ...newState };
+            this.renderSimulation();
+        }
+    }
+    
+    // Legacy functions for compatibility
+    let simulation = null;
+    
+    function initializeSimulation(canvas) {
+        simulation = new ChemistrySimulation('simulationCanvas');
+    }
+    
+    function runSimulation(variables) {
+        const concentration = variables["Concentration (M)"];
+        const acidType = variables["Acid Type"];
+        const pH = simulation.calculatePH(acidType, concentration);
+        const hPlusConcentration = Math.pow(10, -pH);
+        return { pH, hPlusConcentration };
+    }
+    
+    function updateSimulation(variables, canvas) {
+        if (simulation) {
+            simulation.updateState({
+                concentration: variables["Concentration (M)"],
+                acidType: variables["Acid Type"],
+                indicator: variables["Indicator"]
+            });
+        }
+    }
+    
+    function renderVisualization(data, canvas) {
+        // This is now handled by the ChemistrySimulation class
+    }
+    
+      
+      
+// Initialize simulation when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    const canvas = document.getElementById('simulationCanvas');
+    initializeSimulation(canvas);
+    
+    // Get initial values
+    const variables = getCurrentVariables();
+    updateSimulation(variables, canvas);
+    updateOutputs(variables);
+    
+    // Add event listeners for controls
+    document.getElementById('Concentration_M').addEventListener('input', function() {
+        document.getElementById('Concentration_M_value').textContent = this.value;
+        updateAll();
+    });
+    
+    document.getElementById('Acid_Type').addEventListener('change', updateAll);
+    document.getElementById('Indicator').addEventListener('change', updateAll);
+    
+    function getCurrentVariables() {
+        return {
+            'Concentration (M)': parseFloat(document.getElementById('Concentration_M').value),
+            'Acid Type': document.getElementById('Acid_Type').value,
+            'Indicator': document.getElementById('Indicator').value
+        };
+    }
+    
+    function updateAll() {
+        const variables = getCurrentVariables();
+        const canvas = document.getElementById('simulationCanvas');
+        
+        // Run simulation and get results
+        const results = runSimulation(variables);
+        
+        // Update visualization
+        updateSimulation(variables, canvas);
+        renderVisualization(results, canvas);
+        
+        // Update output displays
+        document.getElementById('pH_output').textContent = results.pH.toFixed(2);
+        document.getElementById('H_output').textContent = results.hPlusConcentration.toFixed(6);
+    }
+    
+    function updateOutputs(variables) {
+        const results = runSimulation(variables);
+        document.getElementById('pH_output').textContent = results.pH.toFixed(2);
+        document.getElementById('H_output').textContent = results.hPlusConcentration.toFixed(6);
+    }
+});
+    })();
+  </script>
+</body>
+</html>
