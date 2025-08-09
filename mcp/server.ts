@@ -10,8 +10,18 @@ import {
 import Groq from 'groq-sdk';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Document, Packer, Paragraph } from 'docx';
-import { getMLPrompt } from './prompts/ml.js';
-import { SCIENCE_TOPICS, generateSciencePrompt } from './prompts/science.js';
+import { 
+  getMLPrompt,
+  SCIENCE_TOPICS, 
+  generateSciencePrompt,
+  getScienceReviewPrompt,
+  getVisualLabPrompt, 
+  SIMULATION_TEMPLATES 
+} from './prompts/index.js';
+import ts from 'typescript';
+import esbuild from 'esbuild';
+import fs from 'fs';
+import path from 'path';
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -208,6 +218,12 @@ class MLLabGenerator {
                   type: 'string',
                   description: 'The lab content to review',
                 },
+                lab_type: {
+                  type: 'string',
+                  enum: ['ml', 'science'],
+                  description: 'Type of lab being reviewed (ml for machine learning, science for science labs)',
+                  default: 'ml',
+                },
                 review_criteria: {
                   type: 'array',
                   items: {
@@ -383,6 +399,155 @@ class MLLabGenerator {
               required: ['subject'],
             },
           },
+          {
+            name: 'convert_markdown_to_simulation',
+            description: 'Convert a markdown lab to an interactive TypeScript simulation',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                markdown_content: {
+                  type: 'string',
+                  description: 'The markdown lab content to convert',
+                },
+                subject: {
+                  type: 'string',
+                  enum: ['chemistry', 'physics', 'biology'],
+                  description: 'Science subject for the simulation',
+                },
+                grade_level: {
+                  type: 'string',
+                  description: 'Target grade level (e.g., 9-12, 11-12)',
+                },
+                rendering_library: {
+                  type: 'string',
+                  enum: ['canvas', 'p5js', 'vanilla'],
+                  description: 'Preferred rendering library for the simulation',
+                  default: 'canvas',
+                },
+                complexity_level: {
+                  type: 'string',
+                  enum: ['basic', 'intermediate', 'advanced'],
+                  description: 'Complexity level of the interactive simulation',
+                  default: 'intermediate',
+                },
+              },
+              required: ['markdown_content', 'subject', 'grade_level'],
+            },
+          },
+          {
+            name: 'enhance_simulation_interactivity',
+            description: 'Enhance the interactivity and educational value of an existing simulation',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                simulation_code: {
+                  type: 'string',
+                  description: 'The existing TypeScript simulation code to enhance',
+                },
+                enhancement_goals: {
+                  type: 'array',
+                  items: {
+                    type: 'string',
+                    enum: ['animations', 'user_experience', 'accessibility', 'mobile_support', 'advanced_controls', 'data_visualization'],
+                  },
+                  description: 'Specific enhancement goals for the simulation',
+                },
+              },
+              required: ['simulation_code', 'enhancement_goals'],
+            },
+          },
+          {
+            name: 'generate_simulation_assessment',
+            description: 'Generate assessment tools for an interactive simulation',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                simulation_code: {
+                  type: 'string',
+                  description: 'The TypeScript simulation code to create assessments for',
+                },
+                assessment_type: {
+                  type: 'string',
+                  enum: ['formative', 'summative', 'diagnostic', 'adaptive'],
+                  description: 'Type of assessment to generate',
+                },
+                difficulty_level: {
+                  type: 'string',
+                  enum: ['beginner', 'intermediate', 'advanced'],
+                  description: 'Difficulty level for the assessment',
+                },
+              },
+              required: ['simulation_code', 'assessment_type'],
+            },
+          },
+          {
+            name: 'optimize_simulation_performance',
+            description: 'Optimize simulation code for better performance and mobile compatibility',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                simulation_code: {
+                  type: 'string',
+                  description: 'The TypeScript simulation code to optimize',
+                },
+                target_platform: {
+                  type: 'string',
+                  enum: ['desktop', 'mobile', 'tablet', 'all'],
+                  description: 'Target platform for optimization',
+                  default: 'all',
+                },
+                performance_goals: {
+                  type: 'array',
+                  items: {
+                    type: 'string',
+                    enum: ['60fps', 'low_memory', 'fast_startup', 'smooth_animations', 'responsive_controls'],
+                  },
+                  description: 'Specific performance optimization goals',
+                },
+              },
+              required: ['simulation_code'],
+            },
+          },
+          {
+            name: 'get_simulation_template',
+            description: 'Get a pre-built simulation template for common lab types',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                subject: {
+                  type: 'string',
+                  enum: ['chemistry', 'physics', 'biology'],
+                  description: 'Science subject for the template',
+                },
+                lab_type: {
+                  type: 'string',
+                  description: 'Specific lab type (e.g., acid_base_titration, projectile_motion)',
+                },
+                customization_level: {
+                  type: 'string',
+                  enum: ['basic', 'customized', 'advanced'],
+                  description: 'Level of customization needed',
+                  default: 'basic',
+                },
+              },
+              required: ['subject', 'lab_type'],
+            },
+          },
+          {
+          name: 'compile_simulation_code',
+          description: 'Compile and bundle TypeScript simulation code into runnable JavaScript for browser execution.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              ts_code: {
+                type: 'string',
+                description: 'TypeScript simulation source code.'
+              }
+            },
+            required: ['ts_code']
+          }
+        }
+
         ],
       };
     });
@@ -427,6 +592,18 @@ class MLLabGenerator {
             return await this.generateScienceLab(args);
           case 'list_science_topics':
             return await this.listScienceTopics(args);
+          case 'convert_markdown_to_simulation':
+            return await this.convertMarkdownToSimulation(args);
+          case 'enhance_simulation_interactivity':
+            return await this.enhanceSimulationInteractivity(args);
+          case 'generate_simulation_assessment':
+            return await this.generateSimulationAssessment(args);
+          case 'optimize_simulation_performance':
+            return await this.optimizeSimulationPerformance(args);
+          case 'get_simulation_template':
+            return await this.getSimulationTemplate(args);
+          case 'compile_simulation_code':
+            return await this.compileSimulationCode(args);
           default:
             throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
         }
@@ -435,6 +612,109 @@ class MLLabGenerator {
       }
     });
   }
+
+async compileSimulationCode(args: any) {
+  const {
+    typescript_code,
+    target = 'ES2020',
+    module = 'ES2020',
+    strict = true,
+    include_source_map = false
+  } = args;
+
+  const code = typescript_code || args.ts_code;
+  if (!code) {
+    return {
+      success: false,
+      compiled_code: '',
+      diagnostics: [{ message: 'typescript_code is required', severity: 'error', line: 0, column: 0 }]
+    };
+  }
+
+  // ---- Step 1: TypeScript diagnostics ----
+  const compilerOptions: ts.CompilerOptions = {
+    target: ts.ScriptTarget[target as keyof typeof ts.ScriptTarget] || ts.ScriptTarget.ES2020,
+    module: ts.ModuleKind[module as keyof typeof ts.ModuleKind] || ts.ModuleKind.ES2020,
+    strict,
+    skipLibCheck: true,
+    esModuleInterop: true,
+    allowSyntheticDefaultImports: true,
+    lib: ['es2020', 'dom'],
+  };
+
+  // Load TypeScript standard library files
+  const tsLibDir = path.dirname(ts.getDefaultLibFilePath(compilerOptions));
+  const libFiles = ['lib.es2020.d.ts', 'lib.dom.d.ts'];
+  const libs: Record<string, string> = {};
+  for (const lib of libFiles) {
+    const libPath = path.join(tsLibDir, lib);
+    libs[lib] = fs.readFileSync(libPath, 'utf-8');
+  }
+
+  const sourceFile = ts.createSourceFile('temp.ts', code, ts.ScriptTarget.Latest, true);
+  const program = ts.createProgram(['temp.ts', ...libFiles], compilerOptions, {
+    getSourceFile: (f) => {
+      if (f === 'temp.ts') return sourceFile;
+      if (libs[f]) return ts.createSourceFile(f, libs[f], ts.ScriptTarget.Latest, true);
+      return undefined;
+    },
+    writeFile: () => {},
+    getCurrentDirectory: () => '',
+    getDirectories: () => [],
+    fileExists: (f) => f === 'temp.ts' || !!libs[f],
+    readFile: (f) => {
+      if (f === 'temp.ts') return code;
+      if (libs[f]) return libs[f];
+      return '';
+    },
+    getCanonicalFileName: (f) => f,
+    useCaseSensitiveFileNames: () => true,
+    getNewLine: () => '\n',
+    getDefaultLibFileName: () => 'lib.es2020.d.ts',
+  });
+
+  const diagnostics = ts.getPreEmitDiagnostics(program).map(d => {
+    const message = ts.flattenDiagnosticMessageText(d.messageText, '\n');
+    let line = 0, column = 0;
+    if (d.file && d.start !== undefined) {
+      const pos = d.file.getLineAndCharacterOfPosition(d.start);
+      line = pos.line + 1;
+      column = pos.character + 1;
+    }
+    return {
+      line,
+      column,
+      message,
+      severity:
+        d.category === ts.DiagnosticCategory.Error ? 'error' :
+        d.category === ts.DiagnosticCategory.Warning ? 'warning' : 'info'
+    };
+  });
+
+  const hasErrors = diagnostics.some(d => d.severity === 'error');
+  if (hasErrors) {
+    return { success: false, compiled_code: '', diagnostics };
+  }
+
+  // ---- Step 2: Bundle & transpile with esbuild ----
+  const result = await esbuild.build({
+    stdin: { contents: code, resolveDir: process.cwd(), loader: 'ts' },
+    bundle: true,
+    write: false,
+    format: 'iife',
+    platform: 'browser',
+    target: 'es2017',
+    sourcemap: include_source_map
+  });
+
+  return {
+    success: true,
+    compiled_code: result.outputFiles[0].text,
+    source_map: include_source_map ? result.outputFiles.find(f => f.path.endsWith('.map'))?.text : undefined,
+    diagnostics
+  };
+}
+
 
   async callGroq(messages: any, model = 'llama3-8b-8192', maxRetries = 3, delayMs = 1000) {
     function sleep(ms: number) {
@@ -647,18 +927,33 @@ class MLLabGenerator {
   }
 
   async reviewLabQuality(args: any) {
-    const { lab_content, review_criteria = ['clarity', 'engagement', 'educational_value'], target_audience = 'beginners' } = args;
+    const { lab_content, lab_type = 'ml', review_criteria = ['clarity', 'engagement', 'educational_value'], target_audience = 'beginners' } = args;
 
-    const prompt = getMLPrompt('review_lab_quality', {
-      lab_content,
-      review_criteria: review_criteria.join(', '),
-      target_audience
-    });
+    let prompt: string;
+    let systemContent: string;
+
+    if (lab_type === 'science') {
+      // Use the imported science review function
+      prompt = getScienceReviewPrompt({
+        lab_content,
+        review_criteria: review_criteria.join(', '),
+        target_audience
+      });
+      systemContent = 'You are an expert educational content reviewer specializing in secondary science education.';
+    } else {
+      // Default to ML review
+      prompt = getMLPrompt('review_lab_quality', {
+        lab_content,
+        review_criteria: review_criteria.join(', '),
+        target_audience
+      });
+      systemContent = 'You are an expert educational content reviewer specializing in machine learning education.';
+    }
 
     const messages = [
       {
         role: 'system',
-        content: 'You are an expert educational content reviewer specializing in machine learning education.',
+        content: systemContent,
       },
       {
         role: 'user',
@@ -914,6 +1209,204 @@ class MLLabGenerator {
     };
   }
 
+  // === VISUAL SIMULATION METHODS ===
+
+  async convertMarkdownToSimulation(args: any) {
+    const { markdown_content, subject, grade_level, rendering_library = 'canvas', complexity_level = 'intermediate' } = args;
+
+    try {
+      const prompt = getVisualLabPrompt('convert_markdown_to_simulation', {
+        markdown_content,
+        subject,
+        grade_level,
+        rendering_library,
+        complexity_level
+      });
+
+      const messages = [
+        {
+          role: 'system',
+          content: `You are an expert educational technology developer specializing in converting science labs into interactive TypeScript simulations for ${subject} education.`,
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ];
+
+      const simulation = await this.callLLM(messages, 'llama3-70b-8192');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: simulation,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new McpError(ErrorCode.InvalidParams, `Error converting markdown to simulation: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async enhanceSimulationInteractivity(args: any) {
+    const { simulation_code, enhancement_goals } = args;
+
+    try {
+      const prompt = getVisualLabPrompt('enhance_simulation_interactivity', {
+        simulation_code,
+        enhancement_goals: enhancement_goals.join(', ')
+      });
+
+      const messages = [
+        {
+          role: 'system',
+          content: 'You are an educational UX designer specializing in creating engaging and accessible science simulations.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ];
+
+      const enhancedSimulation = await this.callLLM(messages, 'llama3-70b-8192');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: enhancedSimulation,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new McpError(ErrorCode.InvalidParams, `Error enhancing simulation: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async generateSimulationAssessment(args: any) {
+    const { simulation_code, assessment_type, difficulty_level = 'intermediate' } = args;
+
+    try {
+      const prompt = getVisualLabPrompt('generate_lab_assessment', {
+        simulation_code,
+        simulation_meta: 'extracted from simulation code',
+        assessment_type,
+        difficulty_level
+      });
+
+      const messages = [
+        {
+          role: 'system',
+          content: 'You are an educational assessment expert creating evaluation tools for interactive science simulations.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ];
+
+      const assessment = await this.callLLM(messages, 'llama3-70b-8192');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: assessment,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new McpError(ErrorCode.InvalidParams, `Error generating assessment: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async optimizeSimulationPerformance(args: any) {
+    const { simulation_code, target_platform = 'all', performance_goals = ['60fps', 'low_memory'] } = args;
+
+    try {
+      const prompt = getVisualLabPrompt('optimize_simulation_performance', {
+        simulation_code,
+        target_platform,
+        performance_goals: performance_goals.join(', ')
+      });
+
+      const messages = [
+        {
+          role: 'system',
+          content: 'You are a web performance optimization expert specializing in educational simulations.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ];
+
+      const optimizedSimulation = await this.callLLM(messages, 'llama3-70b-8192');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: optimizedSimulation,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new McpError(ErrorCode.InvalidParams, `Error optimizing simulation: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getSimulationTemplate(args: any) {
+    const { subject, lab_type, customization_level = 'basic' } = args;
+
+    try {
+      // Check if template exists
+      const templates = (SIMULATION_TEMPLATES as any)[subject];
+      if (!templates || !templates[lab_type]) {
+        throw new McpError(ErrorCode.InvalidParams, `Template for ${subject}/${lab_type} not found. Available templates: ${Object.keys(SIMULATION_TEMPLATES).map(s => `${s}: ${Object.keys((SIMULATION_TEMPLATES as any)[s]).join(', ')}`).join('; ')}`);
+      }
+
+      let template = templates[lab_type];
+
+      // If customization is needed, enhance the template
+      if (customization_level !== 'basic') {
+        const prompt = `Customize this simulation template for ${customization_level} level:
+
+${template}
+
+Requirements:
+- ${customization_level === 'customized' ? 'Add more interactive elements and educational features' : 'Create advanced features with complex calculations and visualizations'}
+- Maintain educational value and safety
+- Keep code modular and well-documented`;
+
+        const messages = [
+          {
+            role: 'system',
+            content: 'You are an expert educational simulation developer.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ];
+
+        template = await this.callLLM(messages, 'llama3-70b-8192');
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: template,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new McpError(ErrorCode.InvalidParams, `Error getting simulation template: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
@@ -942,6 +1435,7 @@ class MLLabGenerator {
             'Available lab recipes:',
             '- ML: read_requirements, generate_lab_outline, generate_interactive_lab, generate_gamified_lab, generate_project_based_lab, review_lab_quality, test_lab_effectiveness, generate_assessment_rubric, optimize_lab_content, export_lab_pdf, export_lab_docx, summarize_chunk',
             '- Science: generate_science_lab, list_science_topics',
+            '- Visual Simulations: convert_markdown_to_simulation, enhance_simulation_interactivity, generate_simulation_assessment, optimize_simulation_performance, get_simulation_template',
           ].join('\n')
         }
       ]

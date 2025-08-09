@@ -18,9 +18,9 @@ FROM node:18-slim AS prod
 
 WORKDIR /app
 
-# Only install production dependencies
+# Install dependencies (including TypeScript for runtime compilation)
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev && npm install typescript@5.8.3
 
 # Copy built files and runtime config
 COPY --from=build /app/dist ./dist

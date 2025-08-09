@@ -6,6 +6,7 @@ import LabReview from '../../../components/LabReview';
 import LabExport from '../../../components/LabExport';
 import LabEditor from '../../../components/LabEditor';
 import LabTypeSelector from '../../../components/LabTypeSelector';
+import SimulationWorkflow from '../../../components/SimulationWorkflow';
 import { useState, useEffect } from 'react';
 
 function getAuthHeader(username: string, password: string) {
@@ -34,6 +35,9 @@ export default function LabsPage() {
   const [loadingLabs, setLoadingLabs] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [labCategory, setLabCategory] = useState('interactive'); // New state for lab category
+  const [currentLabSubject, setCurrentLabSubject] = useState<'chemistry' | 'physics' | 'biology'>('chemistry');
+  const [currentGradeLevel, setCurrentGradeLevel] = useState<string>('9-12');
+  const [showSimulation, setShowSimulation] = useState(false);
 
   const labContent = edited ?? output;
 
@@ -163,7 +167,13 @@ export default function LabsPage() {
         
         {/* Lab Generation Forms */}
         {labCategory === 'science' ? (
-          <ScienceLabForm onResult={setOutput} />
+          <ScienceLabForm 
+            onResult={setOutput} 
+            onLabMetadata={(subject, gradeLevel) => {
+              setCurrentLabSubject(subject);
+              setCurrentGradeLevel(gradeLevel);
+            }}
+          />
         ) : (
           <LabForm onResult={setOutput} labType={labCategory} />
         )}
@@ -184,7 +194,45 @@ export default function LabsPage() {
               </button>
             </div>
             <div id="lab-output-section" className={collapsed['output'] ? 'hidden' : 'px-6 py-4'}>
-              <LabOutput output={labContent} />
+              {showSimulation ? (
+                <div>
+                  <button
+                    onClick={() => setShowSimulation(false)}
+                    className="mb-4 text-blue-600 hover:underline flex items-center"
+                  >
+                    <svg className="w-4 h-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Back to Lab Content
+                  </button>
+                  {labContent && (
+                    <SimulationWorkflow
+                      markdownContent={labContent}
+                      subject={currentLabSubject}
+                      gradeLevel={currentGradeLevel}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <LabOutput 
+                    output={labContent} 
+                    labType={labCategory === 'science' ? 'science' : 'ml'}
+                    labSubject={labCategory === 'science' ? currentLabSubject : undefined}
+                  />
+                  {labCategory === 'science' && labContent && (
+                    <button
+                      onClick={() => setShowSimulation(true)}
+                      className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors flex items-center"
+                    >
+                      <svg className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+                      </svg>
+                      Generate Simulation
+                    </button>
+                  )}
+                </div>
+              )}
               {labContent && (
                 <button
                   className="mt-4 bg-cmu-red text-white px-4 py-2 rounded font-semibold"

@@ -593,3 +593,45 @@ export function createValidationPlan(topic: string, subject: string): any {
     }
   };
 }
+
+// Science lab review function
+export function getScienceReviewPrompt(args: { lab_content: string; review_criteria: string; target_audience: string }) {
+  const { lab_content, review_criteria, target_audience } = args;
+  
+  return `You are an expert educational content reviewer specializing in secondary science education. 
+Provide detailed, constructive feedback on science lab quality with specific recommendations for improvement.
+
+Review this science lab content:
+
+${lab_content}
+
+Review Criteria: ${review_criteria}
+Target Audience: ${target_audience}
+
+Provide a comprehensive review that includes:
+1. Overall quality assessment (score out of 10)
+2. Strengths of the current content
+3. Areas for improvement with specific suggestions
+4. Evaluation against each review criterion
+5. Safety and accessibility considerations
+6. Scientific accuracy assessment
+7. Engagement level and hands-on learning factors
+8. Learning objective alignment with science standards
+9. Procedural clarity and difficulty progression
+10. Assessment and scientific inquiry components
+
+For each area, provide:
+- Current status assessment
+- Specific recommendations for improvement
+- Alignment with Next Generation Science Standards (NGSS) or relevant curriculum standards
+- Laboratory safety considerations
+- Real-world application connections
+
+Focus on science-specific aspects such as:
+- Scientific method integration
+- Data collection and analysis procedures
+- Laboratory technique development
+- Scientific reasoning and critical thinking
+- Evidence-based conclusions
+- Collaborative scientific practice`;
+}

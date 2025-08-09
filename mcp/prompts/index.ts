@@ -4,9 +4,10 @@
  * Centralizes all prompts for ML and Science lab generation
  */
 
-// Re-export all prompt templates and topic data from science and ml prompt modules
+// Re-export all prompt templates and topic data from science, ml, and visual prompt modules
 export * from './science.js';
 export * from './ml.js';
+export * from './visual.js';
 
 // Import the types we need for cross-domain helpers
 import { ML_PROMPT_TEMPLATES } from './ml.js';

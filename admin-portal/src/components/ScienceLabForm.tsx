@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 
 interface ScienceLabFormProps {
   onResult: (output: string) => void;
+  onLabMetadata?: (subject: 'chemistry' | 'physics' | 'biology', gradeLevel: string) => void;
+  onSimulationRequest?: (markdownContent: string, subject: 'chemistry' | 'physics' | 'biology', gradeLevel: string) => void;
 }
 
 interface Topic {
@@ -13,7 +15,7 @@ interface Topic {
   estimated_time: number;
 }
 
-export default function ScienceLabForm({ onResult }: ScienceLabFormProps) {
+export default function ScienceLabForm({ onResult, onLabMetadata }: ScienceLabFormProps) {
   const [subject, setSubject] = useState('chemistry');
   const [topics, setTopics] = useState<Topic[]>([]);
   const [selectedTopic, setSelectedTopic] = useState('');
@@ -120,6 +122,10 @@ export default function ScienceLabForm({ onResult }: ScienceLabFormProps) {
       
       if (labContent) {
         onResult(labContent);
+        // Pass the metadata back to parent
+        if (onLabMetadata) {
+          onLabMetadata(subject as 'chemistry' | 'physics' | 'biology', gradeLevel);
+        }
       } else {
         throw new Error('No lab content received');
       }

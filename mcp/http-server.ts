@@ -14,6 +14,7 @@ import multer from 'multer';
 import * as mammoth from 'mammoth';
 import { promises as fsPromises } from 'fs';
 import os from 'os';
+import * as ts from 'typescript';
 import { HierarchicalDocumentProcessor } from './utils/HierarchicalDocumentProcessor.js';
 import { SemanticDocumentProcessor } from './utils/SemanticDocumentProcessor.js';
 
@@ -893,6 +894,303 @@ const swaggerSpec = {
         }
       }
     },
+    '/api/convert_markdown_to_simulation': {
+      post: {
+        summary: 'Convert markdown lab to interactive simulation',
+        description: 'Converts a markdown lab to an interactive TypeScript simulation for browser rendering. Requires HTTP Basic Auth.',
+        security: [{ basicAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  markdown_content: {
+                    type: 'string',
+                    description: 'The markdown lab content to convert'
+                  },
+                  subject: {
+                    type: 'string',
+                    enum: ['chemistry', 'physics', 'biology'],
+                    description: 'Science subject for the simulation'
+                  },
+                  grade_level: {
+                    type: 'string',
+                    description: 'Target grade level (e.g., 9-12, 11-12)'
+                  },
+                  rendering_library: {
+                    type: 'string',
+                    enum: ['canvas', 'p5js', 'vanilla'],
+                    description: 'Preferred rendering library for the simulation',
+                    default: 'canvas'
+                  },
+                  complexity_level: {
+                    type: 'string',
+                    enum: ['basic', 'intermediate', 'advanced'],
+                    description: 'Complexity level of the interactive simulation',
+                    default: 'intermediate'
+                  }
+                },
+                required: ['markdown_content', 'subject', 'grade_level']
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Generated simulation code and metadata',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    simulation_code: { type: 'string' },
+                    metadata: { type: 'object' },
+                    instructions: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '400': { description: 'Invalid input' },
+          '500': { description: 'Internal server error' }
+        }
+      }
+    },
+    '/api/enhance_simulation_interactivity': {
+      post: {
+        summary: 'Enhance simulation interactivity',
+        description: 'Enhances the interactivity and educational value of an existing simulation. Requires HTTP Basic Auth.',
+        security: [{ basicAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  simulation_code: {
+                    type: 'string',
+                    description: 'The existing TypeScript simulation code to enhance'
+                  },
+                  enhancement_goals: {
+                    type: 'array',
+                    items: {
+                      type: 'string',
+                      enum: ['animations', 'user_experience', 'accessibility', 'mobile_support', 'advanced_controls', 'data_visualization']
+                    },
+                    description: 'Specific enhancement goals for the simulation'
+                  }
+                },
+                required: ['simulation_code', 'enhancement_goals']
+              }
+            }
+          }
+        },
+        responses: {
+          '200': { description: 'Enhanced simulation code' },
+          '500': { description: 'Internal server error' }
+        }
+      }
+    },
+    '/api/generate_simulation_assessment': {
+      post: {
+        summary: 'Generate simulation assessment',
+        description: 'Generates assessment tools for an interactive simulation. Requires HTTP Basic Auth.',
+        security: [{ basicAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  simulation_code: {
+                    type: 'string',
+                    description: 'The TypeScript simulation code to create assessments for'
+                  },
+                  assessment_type: {
+                    type: 'string',
+                    enum: ['formative', 'summative', 'diagnostic', 'adaptive'],
+                    description: 'Type of assessment to generate'
+                  },
+                  difficulty_level: {
+                    type: 'string',
+                    enum: ['beginner', 'intermediate', 'advanced'],
+                    description: 'Difficulty level for the assessment'
+                  }
+                },
+                required: ['simulation_code', 'assessment_type']
+              }
+            }
+          }
+        },
+        responses: {
+          '200': { description: 'Generated assessment tools' },
+          '500': { description: 'Internal server error' }
+        }
+      }
+    },
+    '/api/optimize_simulation_performance': {
+      post: {
+        summary: 'Optimize simulation performance',
+        description: 'Optimizes simulation code for better performance and mobile compatibility. Requires HTTP Basic Auth.',
+        security: [{ basicAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  simulation_code: {
+                    type: 'string',
+                    description: 'The TypeScript simulation code to optimize'
+                  },
+                  target_platform: {
+                    type: 'string',
+                    enum: ['desktop', 'mobile', 'tablet', 'all'],
+                    description: 'Target platform for optimization',
+                    default: 'all'
+                  },
+                  performance_goals: {
+                    type: 'array',
+                    items: {
+                      type: 'string',
+                      enum: ['60fps', 'low_memory', 'fast_startup', 'smooth_animations', 'responsive_controls']
+                    },
+                    description: 'Specific performance optimization goals'
+                  }
+                },
+                required: ['simulation_code']
+              }
+            }
+          }
+        },
+        responses: {
+          '200': { description: 'Optimized simulation code' },
+          '500': { description: 'Internal server error' }
+        }
+      }
+    },
+    '/api/get_simulation_template': {
+      post: {
+        summary: 'Get simulation template',
+        description: 'Gets a pre-built simulation template for common lab types. Requires HTTP Basic Auth.',
+        security: [{ basicAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  subject: {
+                    type: 'string',
+                    enum: ['chemistry', 'physics', 'biology'],
+                    description: 'Science subject for the template'
+                  },
+                  lab_type: {
+                    type: 'string',
+                    description: 'Specific lab type (e.g., acid_base_titration, projectile_motion)'
+                  },
+                  customization_level: {
+                    type: 'string',
+                    enum: ['basic', 'customized', 'advanced'],
+                    description: 'Level of customization needed',
+                    default: 'basic'
+                  }
+                },
+                required: ['subject', 'lab_type']
+              }
+            }
+          }
+        },
+        responses: {
+          '200': { description: 'Simulation template code' },
+          '400': { description: 'Template not found' },
+          '500': { description: 'Internal server error' }
+        }
+      }
+    },
+    '/api/compile_typescript': {
+      post: {
+        summary: 'Compile TypeScript code',
+        description: 'Compiles TypeScript code to JavaScript and validates syntax. Requires HTTP Basic Auth.',
+        security: [{ basicAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  typescript_code: {
+                    type: 'string',
+                    description: 'The TypeScript code to compile'
+                  },
+                  target: {
+                    type: 'string',
+                    enum: ['ES5', 'ES2015', 'ES2017', 'ES2018', 'ES2019', 'ES2020', 'ES2021', 'ES2022'],
+                    description: 'TypeScript compilation target',
+                    default: 'ES2020'
+                  },
+                  module: {
+                    type: 'string',
+                    enum: ['CommonJS', 'AMD', 'UMD', 'System', 'ES6', 'ES2015', 'ES2020', 'ESNext'],
+                    description: 'Module system to use',
+                    default: 'ES2020'
+                  },
+                  strict: {
+                    type: 'boolean',
+                    description: 'Enable strict type checking',
+                    default: true
+                  },
+                  include_source_map: {
+                    type: 'boolean',
+                    description: 'Include source map in output',
+                    default: false
+                  }
+                },
+                required: ['typescript_code']
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Compilation result',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    compiled_code: { type: 'string' },
+                    source_map: { type: 'string' },
+                    diagnostics: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          line: { type: 'number' },
+                          column: { type: 'number' },
+                          message: { type: 'string' },
+                          severity: { type: 'string' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': { description: 'Invalid TypeScript code' },
+          '500': { description: 'Internal server error' }
+        }
+      }
+    },
   },
   components: {
     securitySchemes: {
@@ -1490,6 +1788,64 @@ app.post('/api/summarize_document_chunks', basicAuth, async (req: Request, res: 
     const finalSummary = finalSummaryResult.content[0].text;
     res.json({ chunkSummaries, finalSummary });
   } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// --- SIMULATION ENDPOINTS ---
+app.post('/api/convert_markdown_to_simulation', basicAuth, async (req: Request, res: Response) => {
+  try {
+    const result = await generator.convertMarkdownToSimulation(req.body);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post('/api/enhance_simulation_interactivity', basicAuth, async (req: Request, res: Response) => {
+  try {
+    const result = await generator.enhanceSimulationInteractivity(req.body);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post('/api/generate_simulation_assessment', basicAuth, async (req: Request, res: Response) => {
+  try {
+    const result = await generator.generateSimulationAssessment(req.body);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post('/api/optimize_simulation_performance', basicAuth, async (req: Request, res: Response) => {
+  try {
+    const result = await generator.optimizeSimulationPerformance(req.body);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post('/api/get_simulation_template', basicAuth, async (req: Request, res: Response) => {
+  try {
+    const result = await generator.getSimulationTemplate(req.body);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// --- TYPESCRIPT COMPILATION ENDPOINT ---
+app.post('/api/compile_typescript', basicAuth, async (req: Request, res: Response) => {
+  try {
+    // Forward all body params to the generator tool
+    const result = await generator.compileSimulationCode(req.body);
+    res.json(result);
+  } catch (err) {
+    console.error('TypeScript compilation error:', err);
     res.status(500).json({ error: (err as Error).message });
   }
 });

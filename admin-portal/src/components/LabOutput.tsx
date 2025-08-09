@@ -2,9 +2,22 @@ import React, { useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github-dark.css';
+import SimulationGenerator from './SimulationGenerator';
+import SimulationViewer from './SimulationViewer';
 
 interface LabOutputProps {
   output: string | null;
+  labType?: 'ml' | 'science';
+  labSubject?: 'chemistry' | 'physics' | 'biology';
+  gradeLevel?: string;
+}
+
+interface SimulationMetadata {
+  subject: string;
+  grade_level: string;
+  rendering_library: string;
+  complexity_level: string;
+  [key: string]: unknown;
 }
 
 function copyToClipboard(text: string) {
@@ -29,9 +42,12 @@ function splitSections(markdown: string) {
   return sections.length > 0 ? sections : [{ heading: '', level: 0, content: lines }];
 }
 
-export default function LabOutput({ output }: LabOutputProps) {
+export default function LabOutput({ output, labType, labSubject, gradeLevel }: LabOutputProps) {
   const markdownRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState<{ [key: number]: boolean }>({});
+  const [simulationCode, setSimulationCode] = useState<string>('');
+  const [simulationMetadata, setSimulationMetadata] = useState<SimulationMetadata | null>(null);
+  const [showSimulationTab, setShowSimulationTab] = useState<'lab' | 'simulation'>('lab');
 
   function handleCopyAll() {
     if (markdownRef.current) {
@@ -51,6 +67,14 @@ export default function LabOutput({ output }: LabOutputProps) {
     }
   }
 
+  const handleSimulationGenerated = (simulation: string, metadata: SimulationMetadata) => {
+    setSimulationCode(simulation);
+    setSimulationMetadata(metadata);
+    setShowSimulationTab('simulation');
+  };
+
+  const isScience = labType === 'science';
+
   if (!output) {
     return (
       <div className="flex flex-col items-center justify-center text-cmu-gray py-16">
@@ -65,59 +89,107 @@ export default function LabOutput({ output }: LabOutputProps) {
   const sections = splitSections(output);
 
   return (
-    <div className="mt-10 bg-gray-900 rounded-xl shadow-lg p-8 border border-gray-700">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-cmu-red">Generated Lab</h2>
-        <div className="flex gap-2">
-          <button onClick={handleCopyAll} className="px-3 py-1 rounded bg-cmu-red text-cmu-white font-semibold hover:bg-cmu-dark transition text-sm">Copy All</button>
-          <button onClick={handleDownload} className="px-3 py-1 rounded bg-cmu-white text-cmu-red font-semibold border border-cmu-red hover:bg-cmu-red hover:text-cmu-white transition text-sm">Download</button>
+    <div className="mt-10 space-y-6">
+      {/* Science Lab Simulation Generator */}
+      {isScience && labSubject && gradeLevel && (
+        <SimulationGenerator
+          markdownContent={output}
+          subject={labSubject}
+          gradeLevel={gradeLevel}
+          onSimulationGenerated={handleSimulationGenerated}
+        />
+      )}
+
+      {/* Tab Navigation for Science Labs */}
+      {isScience && simulationCode && (
+        <div className="bg-white rounded-lg shadow-md">
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setShowSimulationTab('lab')}
+              className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
+                showSimulationTab === 'lab'
+                  ? 'border-blue-500 text-blue-600 bg-blue-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Markdown Lab
+            </button>
+            <button
+              onClick={() => setShowSimulationTab('simulation')}
+              className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
+                showSimulationTab === 'simulation'
+                  ? 'border-blue-500 text-blue-600 bg-blue-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Interactive Simulation
+            </button>
+          </div>
         </div>
-      </div>
-      <div ref={markdownRef} className="prose prose-invert max-w-none bg-gray-900 text-gray-100 rounded-lg p-6 overflow-x-auto shadow-inner border border-gray-700">
-        {sections.map((section, idx) => (
-          <div key={idx} className="mb-8 border-b border-gray-800 pb-6">
-            {section.heading && (
-              <button
-                className="flex items-center gap-2 text-left w-full mb-2 focus:outline-none"
-                onClick={() => setCollapsed(c => ({ ...c, [idx]: !c[idx] }))}
-                aria-expanded={!collapsed[idx]}
-                aria-controls={`section-content-${idx}`}
-              >
-                <span className={`font-bold ${section.level === 1 ? 'text-3xl' : section.level === 2 ? 'text-2xl' : 'text-xl'} text-cmu-red`}>{section.heading}</span>
-                <svg className={`w-5 h-5 ml-2 transition-transform ${collapsed[idx] ? 'rotate-180' : ''} text-cmu-red`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-              </button>
-            )}
-            <div id={`section-content-${idx}`} className={`${collapsed[idx] ? 'hidden' : ''}`}>
-              <ReactMarkdown
-                rehypePlugins={[rehypeHighlight]}
-                components={{
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  code(props: any) {
-                    const { inline, className = '', children, ...rest } = props;
-                    return !inline ? (
-                      <div className="relative group">
-                        <pre className={className + ' !bg-gray-900 !rounded-lg !p-4'} {...rest as React.HTMLAttributes<HTMLPreElement>}>{children}</pre>
-                        <button
-                          className="absolute top-2 right-2 px-2 py-1 rounded bg-cmu-red text-cmu-white text-xs opacity-80 group-hover:opacity-100 transition"
-                          onClick={() => copyToClipboard(String(children))}
-                          title="Copy code"
-                        >
-                          Copy
-                        </button>
-                      </div>
-                    ) : (
-                      <code className={className + ' !text-cmu-red !bg-cmu-light !rounded px-1'} {...rest}>{children}</code>
-                    );
-                  },
-                  h1: () => <></>,
-                  h2: () => <></>,
-                  h3: () => <></>,
-                }}
-              >{section.content.join('\n')}</ReactMarkdown>
+      )}
+
+      {/* Lab Content or Simulation Viewer */}
+      {isScience && simulationCode && showSimulationTab === 'simulation' && simulationMetadata ? (
+        <SimulationViewer
+          simulationCode={simulationCode}
+          metadata={simulationMetadata}
+        />
+      ) : (
+        <div className="bg-gray-900 rounded-xl shadow-lg p-8 border border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-cmu-red">Generated Lab</h2>
+            <div className="flex gap-2">
+              <button onClick={handleCopyAll} className="px-3 py-1 rounded bg-cmu-red text-cmu-white font-semibold hover:bg-cmu-dark transition text-sm">Copy All</button>
+              <button onClick={handleDownload} className="px-3 py-1 rounded bg-cmu-white text-cmu-red font-semibold border border-cmu-red hover:bg-cmu-red hover:text-cmu-white transition text-sm">Download</button>
             </div>
           </div>
-        ))}
-      </div>
+          <div ref={markdownRef} className="prose prose-invert max-w-none bg-gray-900 text-gray-100 rounded-lg p-6 overflow-x-auto shadow-inner border border-gray-700">
+            {sections.map((section, idx) => (
+              <div key={idx} className="mb-8 border-b border-gray-800 pb-6">
+                {section.heading && (
+                  <button
+                    className="flex items-center gap-2 text-left w-full mb-2 focus:outline-none"
+                    onClick={() => setCollapsed(c => ({ ...c, [idx]: !c[idx] }))}
+                    aria-expanded={!collapsed[idx]}
+                    aria-controls={`section-content-${idx}`}
+                  >
+                    <span className={`font-bold ${section.level === 1 ? 'text-3xl' : section.level === 2 ? 'text-2xl' : 'text-xl'} text-cmu-red`}>{section.heading}</span>
+                    <svg className={`w-5 h-5 ml-2 transition-transform ${collapsed[idx] ? 'rotate-180' : ''} text-cmu-red`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                )}
+                <div id={`section-content-${idx}`} className={`${collapsed[idx] ? 'hidden' : ''}`}>
+                  <ReactMarkdown
+                    rehypePlugins={[rehypeHighlight]}
+                    components={{
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      code(props: any) {
+                        const { inline, className = '', children, ...rest } = props;
+                        return !inline ? (
+                          <div className="relative group">
+                            <pre className={className + ' !bg-gray-900 !rounded-lg !p-4'} {...rest as React.HTMLAttributes<HTMLPreElement>}>{children}</pre>
+                            <button
+                              className="absolute top-2 right-2 px-2 py-1 rounded bg-cmu-red text-cmu-white text-xs opacity-80 group-hover:opacity-100 transition"
+                              onClick={() => copyToClipboard(String(children))}
+                              title="Copy code"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        ) : (
+                          <code className={className + ' !text-cmu-red !bg-cmu-light !rounded px-1'} {...rest}>{children}</code>
+                        );
+                      },
+                      h1: () => <></>,
+                      h2: () => <></>,
+                      h3: () => <></>,
+                    }}
+                  >{section.content.join('\n')}</ReactMarkdown>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

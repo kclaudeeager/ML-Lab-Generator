@@ -9,10 +9,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
     "autoprefixer": "^10.4.21",
     "cors": "^2.8.5",
     "docx": "^9.5.1",
     "express": "^5.1.0",
+    "monaco-editor": "^0.52.2",
     "next": "15.3.5",
     "pdf-lib": "^1.17.1",
     "postcss": "^8.5.6",
