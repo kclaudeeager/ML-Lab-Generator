@@ -34,6 +34,29 @@ export interface VisualLabCode {
 }
 
 export const VISUAL_LAB_PROMPTS = {
+    type: string;
+    min?: number;
+    max?: number;
+    step?: number;
+    options?: string[];
+  }>;
+  outputs?: Array<{
+    name: string;
+    type?: string;
+    unit?: string;
+    description?: string;
+  }>;
+}
+
+export interface VisualLabCode {
+  simulationMeta: SimulationMeta;
+  initializeSimulation: string;
+  runSimulation: string;
+  updateSimulation: string;
+  renderVisualization: string;
+}
+
+export const VISUAL_LAB_PROMPTS = {
 
   convert_markdown_to_simulation: `You are an expert educational technology developer specializing in creating complete, executable TypeScript simulation modules.
 
@@ -72,42 +95,23 @@ MANDATORY REQUIREMENTS:
    - Educational elements: scales, labels, units, explanations
 
 4. IMPLEMENTATION RULES:
-   - ALL variables used must be properly defined before use
+   - ALL variables used must be properly defined
    - NO placeholder code with "..." or "implement here" comments
    - NO undefined variables or functions
    - ALL calculations must use real scientific formulas
    - Include complete runSimulation logic with actual calculations
    - All functions must be fully implemented
-   - CRITICAL: When returning objects, ALL properties must be defined variables, NOT undefined names
-   - Example: return { pH, temperature, color } - ALL variables (pH, temperature, color) must exist
-   - FORBIDDEN: return { someUndefinedVariable } - this will cause compilation errors
 
 5. FORBIDDEN ELEMENTS:
    - NO external DOM access (document.getElementById, etc.)
    - NO explanatory text outside the code
    - NO markdown formatting or code blocks
    - NO undefined variables like pHValue or colorObserved without proper definition
-   - NO shorthand object properties with undefined variables: { indicatorColor } ❌
-   - NO incomplete return statements with missing variable definitions
 
 SCIENTIFIC CALCULATION EXAMPLES:
 For Chemistry pH: const pH = -Math.log10(concentration * Ka)
 For Physics motion: const position = initialVelocity * time + 0.5 * acceleration * time * time
 For Biology kinetics: const rate = (Vmax * substrate) / (Km + substrate)
-
-CORRECT VARIABLE PATTERN EXAMPLE:
-In runSimulation function, ALL variables must be defined before use:
-- const concentration = variables["concentration"] || 0.1;
-- const temperature = variables["temperature"] || 298;
-- const Ka = 1.8e-5;
-- const pH = -Math.log10(Math.sqrt(Ka * concentration));
-- const indicatorColor = pH < 7 ? "red" : pH > 7 ? "blue" : "green";
-- return { pH, concentration, temperature, indicatorColor }; // ALL variables defined above
-
-FORBIDDEN PATTERNS:
-- return { pH, undefinedVariable }; // undefinedVariable not defined
-- return { calculatePH() }; // function calls in object shorthand
-- const result = { missingVar }; // missingVar not declared
 
 OUTPUT FORMAT - CRITICAL RULES:
 1. Start immediately with: export const simulationMeta = {
@@ -118,11 +122,8 @@ OUTPUT FORMAT - CRITICAL RULES:
 6. NO comments explaining what the code does
 7. ALL functions must be fully implemented with real logic
 8. ALL variables must be properly defined before use
-9. CRITICAL: Every variable in return statements must be defined first
-10. AVOID ERROR: "No value exists in scope for shorthand property" - define ALL variables before returning
 
 Your response must be IMMEDIATELY executable TypeScript code starting with "export const simulationMeta" and ending with the mountSimulation return statement. Do not include any explanatory text.`,
-
   enhance_simulation_interactivity: `You are an educational UX designer specializing in creating highly engaging, scientifically accurate science simulations.
 
 TASK: Enhance the interactivity, visual appeal, and educational value of this existing simulation by implementing the same quality improvements as a professional educational simulation.
@@ -133,34 +134,12 @@ CURRENT SIMULATION:
 ENHANCEMENT GOALS:
 {enhancement_goals}
 
-CRITICAL OUTPUT REQUIREMENTS:
-1. Return ONLY executable TypeScript code - NO explanatory text
-2. Start immediately with: export const simulationMeta = {
-3. End with the closing brace of the mountSimulation function
-4. NO markdown formatting, NO code blocks, NO comments
-5. ALL variables must be properly defined before use
-6. NO placeholder code with "..." or incomplete implementations
-
 MANDATORY IMPROVEMENTS TO IMPLEMENT:
-- Scientific accuracy fixes: Replace any oversimplified calculations with proper scientific equations
-- Enhanced visual rendering: Add smooth color interpolation, detailed visual elements, real-time measurements
-- Advanced interactive features: Add educational information panels, step-by-step visualization, comparative analysis tools
-- Professional user interface: Enhanced control layouts, tooltips, real-time feedback
-- Educational value enhancements: Show intermediate calculation steps, real-world applications, scenario exploration
-- Accessibility and performance: Keyboard navigation, screen reader compatibility, 60fps optimization
+(Keep all enhancement goals, interactivity, and visual requirements from the original version — including professional UI, scientific accuracy, advanced visualization, and accessibility features.)
 
-SPECIFIC IMPROVEMENTS BY SUBJECT:
-Chemistry: Realistic beaker shapes, pH color scales, molecular structure displays, indicator transitions
-Physics: Vector field visualizations, trajectory paths, force diagrams, energy conservation displays  
-Biology: Animated enzyme-substrate binding, population dynamics graphs, cell animations
-
-FORBIDDEN:
-- NO explanatory text outside the code
-- NO undefined variables or incomplete functions
-- NO placeholder implementations
-- NO markdown formatting
-
-Your response must be complete, executable TypeScript code that starts with "export const simulationMeta" and ends with the mountSimulation return statement.`,
+OUTPUT FORMAT:
+Return ONLY the complete enhanced TypeScript code without any markdown formatting, explanatory text, or code block delimiters. Start directly with the export statements and code.
+`,
 
   generate_lab_assessment: `You are an educational assessment expert creating evaluation tools for interactive science simulations.
 
@@ -177,7 +156,8 @@ ASSESSMENT REQUIREMENTS:
 - Support both auto-grading and teacher review.
 
 OUTPUT FORMAT:
-Return ONLY the complete assessment TypeScript code without markdown formatting, explanatory text, or code block delimiters. Start directly with the export statements and code.`,
+Return ONLY the complete assessment TypeScript code without markdown formatting, explanatory text, or code block delimiters. Start directly with the export statements and code.
+`,
 
   optimize_simulation_performance: `You are a web performance optimization expert for educational simulations.
 
@@ -190,8 +170,8 @@ OPTIMIZATION GOALS:
 - Minimize computational complexity using caching, object pooling, and efficient algorithms.
 
 OUTPUT FORMAT:
-Return ONLY the complete optimized TypeScript code without markdown formatting, explanatory text, or code block delimiters. Start directly with the export statements and code.`
-
+Return ONLY the complete optimized TypeScript code without markdown formatting, explanatory text, or code block delimiters. Start directly with the export statements and code.
+`
 };
 
 export function getVisualLabPrompt(promptKey: string, variables: Record<string, any>): string {
