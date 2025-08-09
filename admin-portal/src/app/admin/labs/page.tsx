@@ -6,7 +6,7 @@ import LabReview from '../../../components/LabReview';
 import LabExport from '../../../components/LabExport';
 import LabEditor from '../../../components/LabEditor';
 import LabTypeSelector from '../../../components/LabTypeSelector';
-import SimulationWorkflow from '../../../components/SimulationWorkflow';
+import SimulationWorkflow from '../../../components/SimulationWorkflow/index';
 import { useState, useEffect } from 'react';
 
 function getAuthHeader(username: string, password: string) {

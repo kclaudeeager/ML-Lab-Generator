@@ -16,7 +16,7 @@ export default function SimulationWorkflow({
   subject, 
   gradeLevel 
 }: SimulationWorkflowProps) {
-  const [step, setStep] = useState<'metadata' | 'compile' | 'enhance' | 'preview'>('metadata');
+  const [step, setStep] = useState<'metadata' | 'compile' | 'preview-current' | 'enhance' | 'preview'>('metadata');
   const [metadata, setMetadata] = useState<SimulationMetadata>({
     subject,
     grade_level: gradeLevel,
@@ -66,7 +66,7 @@ export default function SimulationWorkflow({
   const handleCompilationComplete = (result: CompilationResult) => {
     if (result.success) {
       setCompiledCode(result.compiled_code);
-      setStep('enhance');
+      setStep('preview-current');
     }
   };
 
@@ -126,7 +126,7 @@ export default function SimulationWorkflow({
     <div className="space-y-6">
       {/* Progress Steps */}
       <div className="flex justify-center items-center space-x-4 mb-8">
-        {(['metadata', 'compile', 'enhance', 'preview'] as const).map((s, i) => (
+        {(['metadata', 'compile', 'preview-current', 'enhance', 'preview'] as const).map((s, i) => (
           <React.Fragment key={s}>
             {i > 0 && <div className="h-0.5 w-8 bg-gray-200" />}
             <div 
@@ -170,6 +170,31 @@ export default function SimulationWorkflow({
           initialCode={generatedCode}
           onCompiled={handleCompilationComplete}
         />
+      )}
+
+      {step === 'preview-current' && (
+        <div className="space-y-4">
+          <div className="bg-blue-50 p-4 rounded-md">
+            <h4 className="text-md font-medium text-blue-800 mb-2">Preview Current Simulation</h4>
+            <p className="text-sm text-blue-600 mb-4">
+              Here&apos;s your current simulation. Review it before proceeding to enhancement options.
+            </p>
+          </div>
+          
+          <SimulationPreview
+            code={compiledCode}
+            metadata={metadata}
+          />
+          
+          <div className="flex justify-center">
+            <ActionButton
+              variant="primary"
+              onClick={() => setStep('enhance')}
+            >
+              Proceed to Enhancement Options
+            </ActionButton>
+          </div>
+        </div>
       )}
 
       {step === 'enhance' && (

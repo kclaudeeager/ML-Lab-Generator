@@ -1,7 +1,8 @@
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import AdminNav from '../../../components/AdminNav';
-import SimulationWorkflow from '../../../components/SimulationWorkflow';
+import React from 'react';
+import SimulationWorkflow from '../../../components/SimulationWorkflow/index';
 
 export default function SimulationLabPage() {
   const router = useRouter();

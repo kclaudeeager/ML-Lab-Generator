@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM node:18 AS build
+FROM node:20 AS build
 
 WORKDIR /app
 
@@ -14,9 +14,12 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Production
-FROM node:18-slim AS prod
+FROM node:20-slim AS prod
 
 WORKDIR /app
+
+# Update package lists and upgrade system packages to reduce vulnerabilities
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies (including TypeScript for runtime compilation)
 COPY package.json package-lock.json ./

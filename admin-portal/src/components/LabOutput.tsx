@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github-dark.css';
 import SimulationGenerator from './SimulationGenerator';
-import SimulationViewer from './SimulationViewer';
+import SimulationWorkflow from './SimulationWorkflow';
 
 interface LabOutputProps {
   output: string | null;
@@ -130,9 +130,13 @@ export default function LabOutput({ output, labType, labSubject, gradeLevel }: L
 
       {/* Lab Content or Simulation Viewer */}
       {isScience && simulationCode && showSimulationTab === 'simulation' && simulationMetadata ? (
-        <SimulationViewer
-          simulationCode={simulationCode}
+        <SimulationWorkflow
+          initialCode={simulationCode}
           metadata={simulationMetadata}
+          onCodeChange={(newCode) => {
+            // Handle code changes if needed
+            console.log('Simulation code updated:', newCode.length, 'characters');
+          }}
         />
       ) : (
         <div className="bg-gray-900 rounded-xl shadow-lg p-8 border border-gray-700">

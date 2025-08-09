@@ -3,28 +3,26 @@
 
 export interface SimulationMeta {
   title: string;
-  description: string;
   subject: string;
   gradeLevel: string;
-  estimatedTime: number;
-  variables: {
+  safetyConsiderations?: string[];
+  learningObjectives: string[];
+  realWorldApplications?: string[];
+  essentialQuestion?: string;
+  variables: Array<{
     name: string;
-    type: 'slider' | 'input' | 'dropdown' | 'button';
-    label: string;
+    type: string;
     min?: number;
     max?: number;
-    default: any;
-    unit?: string;
+    step?: number;
     options?: string[];
-  }[];
-  outputs: {
+  }>;
+  outputs?: Array<{
     name: string;
-    type: 'chart' | 'text' | 'visual' | 'table';
-    label: string;
+    type?: string;
     unit?: string;
-  }[];
-  safetyConsiderations: string[];
-  learningObjectives: string[];
+    description?: string;
+  }>;
 }
 
 export interface VisualLabCode {
@@ -37,9 +35,9 @@ export interface VisualLabCode {
 
 export const VISUAL_LAB_PROMPTS = {
   
-  convert_markdown_to_simulation: `You are an expert educational technology developer specializing in converting science lab instructions into interactive web-based simulations.
+  convert_markdown_to_simulation: `You are an expert educational technology developer specializing in creating highly interactive, visually engaging science simulations.
 
-TASK: Convert the following markdown lab content into a complete TypeScript-based interactive simulation.
+TASK: Convert the following markdown lab content into a complete, HIGHLY INTERACTIVE TypeScript-based simulation with rich visualizations.
 
 INPUT MARKDOWN LAB:
 {markdown_content}
@@ -47,85 +45,190 @@ INPUT MARKDOWN LAB:
 TARGET SUBJECT: {subject}
 GRADE LEVEL: {grade_level}
 RENDERING LIBRARY: {rendering_library} (canvas, p5js, or vanilla)
+COMPLEXITY LEVEL: {complexity_level}
 
-REQUIREMENTS:
+CRITICAL REQUIREMENTS FOR ENGAGING SIMULATIONS:
 
-1. **EXTRACT SIMULATION METADATA**: 
-   - Identify key variables that students should manipulate
-   - Determine appropriate input controls (sliders, dropdowns, etc.)
-   - Define expected outputs and visualizations
-   - Extract safety considerations and learning objectives
+1. **RICH VISUAL INTERACTIONS**:
+   - Dynamic color changes showing chemical reactions, pH indicators, or temperature effects
+   - Animated particles, molecules, or objects in motion
+   - Real-time graphs and charts that update as users adjust parameters
+   - Visual representations of abstract concepts (electric fields, wave functions, etc.)
+   - Interactive drag-and-drop elements
+   - Zoom and pan capabilities for detailed exploration
 
-2. **GENERATE SECURE TYPESCRIPT CODE**:
-   - Create a \`SimulationMeta\` object with all metadata
-   - Write \`initializeSimulation(canvas: HTMLCanvasElement)\` function
-   - Write \`runSimulation(variables: any)\` function that performs calculations
-   - Write \`updateSimulation(variables: any, canvas: HTMLCanvasElement)\` for real-time updates
-   - Write \`renderVisualization(data: any, canvas: HTMLCanvasElement)\` for drawing
+2. **IMMEDIATE VISUAL FEEDBACK**:
+   - Every user input should produce immediate visual changes
+   - Use color gradients, animations, and transitions
+   - Show cause-and-effect relationships visually
+   - Implement hover effects and interactive tooltips
+   - Display running calculations and intermediate steps
 
-3. **SAFETY & SECURITY**:
-   - No external network calls or file system access
-   - Validate all user inputs with proper bounds checking
-   - Use only approved mathematical functions
-   - Include error handling for edge cases
+3. **ADVANCED INTERACTIVE ELEMENTS**:
+   - Multiple linked visualizations (e.g., molecular view + macroscopic effects)
+   - Interactive timelines or step-through animations
+   - Comparative scenarios side-by-side
+   - Interactive data collection and analysis tools
+   - Virtual instruments and measurement tools
 
-4. **EDUCATIONAL VALUE**:
-   - Make variables interactive and immediately responsive
-   - Show real-time cause-and-effect relationships
-   - Include data visualization (graphs, charts, animations)
-   - Provide clear feedback on results
+4. **EDUCATIONAL DISCOVERY FEATURES**:
+   - "What happens if..." exploration modes
+   - Guided discovery paths with hints and challenges
+   - Interactive experiments students can design
+   - Data visualization and pattern recognition
+   - Prediction and hypothesis testing tools
 
-5. **CODE STRUCTURE**:
+5. **SOPHISTICATED CALCULATIONS AND LOGIC**:
+   - Implement realistic scientific models and equations
+   - Handle complex multi-variable relationships
+   - Provide accurate numerical simulations
+   - Include uncertainty and error analysis where appropriate
+   - Support experimental data analysis
+
+6. **SPECIFIC EXAMPLES BY SUBJECT**:
+   
+   **CHEMISTRY**: 
+   - Animated molecular structures that show bond formation/breaking
+   - Color-changing solutions with realistic pH indicators
+   - Interactive periodic table with electron configurations
+   - Reaction rate visualizations with collision theory
+   - 3D molecular geometry with rotation controls
+   
+   **PHYSICS**:
+   - Animated projectile motion with trajectory visualization
+   - Interactive wave interference patterns
+   - Electric field line visualizations with moveable charges
+   - Oscilloscope-style displays for wave analysis
+   - Real-time force vector diagrams
+   
+   **BIOLOGY**:
+   - Animated enzyme-substrate interactions
+   - Interactive cell diagrams with zoom levels
+   - Population dynamics with predator-prey cycles
+   - DNA replication step-by-step animation
+   - Microscope simulation with focus controls
+
+7. **TECHNICAL IMPLEMENTATION**:
+   - Use HTML5 Canvas with smooth 60fps animations
+   - Implement efficient rendering with requestAnimationFrame
+   - Create modular, reusable visualization components
+   - Include responsive design for mobile devices
+   - Add keyboard and touch interaction support
+
+8. **CODE STRUCTURE**:
 \`\`\`typescript
-// Simulation metadata
-export const simulationMeta: SimulationMeta = { ... };
+export const simulationMeta: SimulationMeta = {
+  title: "Descriptive Title",
+  subject: "{subject}",
+  gradeLevel: "{grade_level}",
+  safetyConsiderations: ["Relevant safety notes"],
+  learningObjectives: ["Specific, measurable objectives"],
+  realWorldApplications: ["How this applies to real world"],
+  essentialQuestion: "Key question this simulation answers",
+  variables: [
+    {
+      name: "Parameter Name",
+      type: "slider",
+      min: 0,
+      max: 100,
+      step: 1,
+      options: ["option1", "option2"] // For dropdown types only
+    }
+  ],
+  outputs: [
+    {
+      name: "Result Name",
+      type: "number",
+      unit: "units"
+    }
+  ]
+};
 
-// Initialize simulation
 export function initializeSimulation(canvas: HTMLCanvasElement): void {
-  // Setup canvas, initial state, event listeners
+  // Setup canvas with proper dimensions and context
+  canvas.width = 800;
+  canvas.height = 600;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  
+  // Initialize animation state
+  // DO NOT access external DOM elements - work only with the canvas
+  // Set up any initial drawing or state
 }
 
-// Run calculation logic
 export function runSimulation(variables: Record<string, any>): any {
-  // Core simulation mathematics and logic
-  // Return results object
+  // Perform realistic scientific calculations
+  // Use proper formulas and equations
+  // Handle edge cases and validation
+  // Return structured results object
 }
 
-// Update visualization in real-time
 export function updateSimulation(variables: Record<string, any>, canvas: HTMLCanvasElement): void {
-  // Real-time updates based on user input
+  // Clear canvas and redraw everything
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Calculate results
+  const results = runSimulation(variables);
+  
+  // Render visualization with results
+  renderVisualization(results, canvas);
 }
 
-// Render final visualization
 export function renderVisualization(data: any, canvas: HTMLCanvasElement): void {
-  // Draw charts, graphs, animations
+  // Create rich, interactive visualizations
+  // Draw animations, charts, graphs
+  // Use smooth transitions and effects
+  // Make it visually engaging and educational
 }
 \`\`\`
 
-EXAMPLES OF GOOD INTERACTIVE ELEMENTS:
-- pH sliders for chemistry labs (show color changes)
-- Mass/velocity inputs for physics (show trajectory)
-- Temperature controls for biology (show enzyme activity)
-- Concentration dropdowns (show reaction rates)
+CRITICAL REQUIREMENTS:
+- ALWAYS include the complete variables array in simulationMeta
+- NEVER access external DOM elements (getElementById, etc.)
+- Work ONLY with the provided canvas element
+- Include realistic scientific calculations
+- Create visually engaging animations and interactions
+- Use proper TypeScript types and error handling
+
+9. **EXAMPLES OF ENGAGING FEATURES TO IMPLEMENT**:
+   - Particle systems for chemical reactions or gas behavior
+   - Interactive molecular builders with 3D rotation
+   - Real-time data plotting with multiple datasets
+   - Animated step-by-step process visualization
+   - Virtual measurement tools (rulers, thermometers, pH meters)
+   - Comparative analysis with multiple scenarios
+   - Interactive timelines with playback controls
+   - Zoom levels from molecular to macroscopic views
 
 OUTPUT FORMAT:
 You must follow these rules EXACTLY:
-1. Return ONLY pure TypeScript code with no explanations, comments, or markdown
+1. Return ONLY pure TypeScript code with NO explanations, comments, or markdown
 2. Start immediately with 'export const simulationMeta'
-3. DO NOT include any:
-   - Code block markers or delimiters
+3. Create a HIGHLY INTERACTIVE and VISUALLY ENGAGING simulation
+4. Implement sophisticated animations and real-time feedback
+5. Include realistic scientific calculations and visualizations
+6. Make every user interaction produce immediate visual changes
+7. DO NOT include any:
+   - Code block markers (triple backticks typescript or triple backticks) 
    - Explanatory text or descriptions
    - Comments or documentation
    - Markdown formatting
    - Additional whitespace before or after the code
-4. The code must be structured exactly as:
-   export const simulationMeta: SimulationMeta = {...};
-   export function initializeSimulation(canvas: HTMLCanvasElement): void {...}
-   export function runSimulation(variables: Record<string, any>): any {...}
-   export function updateSimulation(variables: Record<string, any>, canvas: HTMLCanvasElement): void {...}
-   export function renderVisualization(data: any, canvas: HTMLCanvasElement): void {...}
+   - Phrases like "Here is the code" or similar
+   - ANY text that is not TypeScript code
 
-Your response must begin with the exact text: export const simulationMeta`,
+CRITICAL: Your response must be IMMEDIATE TypeScript code starting with: export const simulationMeta
+
+DO NOT WRITE:
+- "Here is the TypeScript code"
+- "triple backticks typescript"
+- "triple backticks"
+- Any explanatory text
+
+WRITE ONLY:
+export const simulationMeta = {`,
 
   enhance_simulation_interactivity: `You are an educational UX designer specializing in science simulations.
 

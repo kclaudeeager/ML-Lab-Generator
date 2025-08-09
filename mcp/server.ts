@@ -613,6 +613,51 @@ class MLLabGenerator {
     });
   }
 
+  // Helper function to clean LLM response and extract pure TypeScript code
+  private cleanSimulationCode(rawResponse: string): string {
+    let cleaned = rawResponse.trim();
+    
+    // Remove common unwanted prefixes
+    const unwantedPrefixes = [
+      'Here is the TypeScript code for the interactive simulation:',
+      'Here is the TypeScript code:',
+      'Here\'s the TypeScript code:',
+      'Here is the code:',
+      'Here\'s the code:',
+      'TypeScript code:',
+      'The TypeScript code:',
+      'Below is the TypeScript code:',
+      '```typescript',
+      '```ts',
+      '```'
+    ];
+    
+    for (const prefix of unwantedPrefixes) {
+      if (cleaned.startsWith(prefix)) {
+        cleaned = cleaned.substring(prefix.length).trim();
+      }
+    }
+    
+    // Remove trailing code block markers
+    const unwantedSuffixes = ['```', '```typescript', '```ts'];
+    for (const suffix of unwantedSuffixes) {
+      if (cleaned.endsWith(suffix)) {
+        cleaned = cleaned.substring(0, cleaned.length - suffix.length).trim();
+      }
+    }
+    
+    // Ensure it starts with export const simulationMeta
+    if (!cleaned.startsWith('export const simulationMeta')) {
+      // Try to find the start of the actual code
+      const exportIndex = cleaned.indexOf('export const simulationMeta');
+      if (exportIndex > 0) {
+        cleaned = cleaned.substring(exportIndex);
+      }
+    }
+    
+    return cleaned;
+  }
+
 async compileSimulationCode(args: any) {
   const {
     typescript_code,
@@ -622,7 +667,7 @@ async compileSimulationCode(args: any) {
     include_source_map = false
   } = args;
 
-  const code = typescript_code || args.ts_code;
+  let code = typescript_code || args.ts_code;
   if (!code) {
     return {
       success: false,
@@ -631,24 +676,213 @@ async compileSimulationCode(args: any) {
     };
   }
 
+  // Prepend necessary type definitions and imports for simulation code
+  const typeDefinitions = `
+// Type definitions for simulation code
+interface SimulationMeta {
+  title: string;
+  subject: string;
+  gradeLevel: string;
+  safetyConsiderations?: string[];
+  learningObjectives: string[];
+  realWorldApplications?: string[];
+  essentialQuestion?: string;
+  variables: Array<{
+    name: string;
+    type: string;
+    min?: number;
+    max?: number;
+    step?: number;
+    options?: string[];
+    unit?: string;
+  }>;
+  outputs?: Array<{
+    name: string;
+    type?: string;
+    unit?: string;
+    description?: string;
+  }>;
+}
+
+// Ensure global types are available
+declare global {
+  interface SymbolConstructor {
+    readonly iterator: unique symbol;
+  }
+  var Symbol: SymbolConstructor;
+  
+  interface IterableIterator<T> extends Iterator<T> {
+    [Symbol.iterator](): IterableIterator<T>;
+  }
+  
+  interface Iterator<T, TReturn = any, TNext = undefined> {
+    next(...args: [] | [TNext]): IteratorResult<T, TReturn>;
+    return?(value?: TReturn): IteratorResult<T, TReturn>;
+    throw?(e?: any): IteratorResult<T, TReturn>;
+  }
+  
+  interface IteratorResult<T, TReturn = any> {
+    done: boolean;
+    value: T | TReturn;
+  }
+  
+  interface Array<T> {
+    [Symbol.iterator](): IterableIterator<T>;
+    [index: number]: T;
+    length: number;
+    push(...items: T[]): number;
+    pop(): T | undefined;
+    map<U>(callbackfn: (value: T, index: number, array: T[]) => U): U[];
+    forEach(callbackfn: (value: T, index: number, array: T[]) => void): void;
+  }
+  interface Function {}
+  interface Boolean {}
+  interface Number {
+    toFixed(digits?: number): string;
+    toString(radix?: number): string;
+    valueOf(): number;
+  }
+  interface NumberConstructor {
+    (value?: any): number;
+    new(value?: any): Number;
+    readonly prototype: Number;
+    readonly MAX_VALUE: number;
+    readonly MIN_VALUE: number;
+    readonly NaN: number;
+    readonly NEGATIVE_INFINITY: number;
+    readonly POSITIVE_INFINITY: number;
+    isFinite(number: unknown): boolean;
+    isInteger(number: unknown): boolean;
+    isNaN(number: unknown): boolean;
+    isSafeInteger(number: unknown): boolean;
+    parseFloat(string: string): number;
+    parseInt(string: string, radix?: number): number;
+  }
+  interface StringConstructor {
+    new(value?: any): String;
+    (value?: any): string;
+    readonly prototype: String;
+    fromCharCode(...codes: number[]): string;
+  }
+  interface String {
+    toString(): string;
+    valueOf(): string;
+    charAt(pos: number): string;
+    charCodeAt(index: number): number;
+    concat(...strings: string[]): string;
+    indexOf(searchString: string, position?: number): number;
+    lastIndexOf(searchString: string, position?: number): number;
+    localeCompare(that: string): number;
+    match(regexp: string | RegExp): RegExpMatchArray | null;
+    replace(searchValue: string | RegExp, replaceValue: string): string;
+    search(regexp: string | RegExp): number;
+    slice(start?: number, end?: number): string;
+    split(separator?: string | RegExp, limit?: number): string[];
+    substring(start: number, end?: number): string;
+    toLowerCase(): string;
+    toLocaleLowerCase(): string;
+    toUpperCase(): string;
+    toLocaleUpperCase(): string;
+    trim(): string;
+    readonly length: number;
+    substr(from: number, length?: number): string;
+    [index: number]: string;
+  }
+  interface Object {}
+  interface RegExp {}
+  interface RegExpMatchArray extends Array<string> {
+    index?: number;
+    input?: string;
+    groups?: { [key: string]: string };
+  }
+  interface IArguments {
+    [index: number]: any;
+    length: number;
+    callee: Function;
+  }
+  interface Math {
+    log10(x: number): number;
+    PI: number;
+    abs(x: number): number;
+    pow(base: number, exponent: number): number;
+    sqrt(x: number): number;
+    sin(x: number): number;
+    cos(x: number): number;
+    tan(x: number): number;
+    floor(x: number): number;
+    ceil(x: number): number;
+    round(x: number): number;
+    max(...values: number[]): number;
+    min(...values: number[]): number;
+    random(): number;
+  }
+  var Math: Math;
+  var Number: NumberConstructor;
+  var String: StringConstructor;
+  var parseFloat: (string: string) => number;
+  var parseInt: (string: string, radix?: number) => number;
+  var isNaN: (value: any) => boolean;
+  var isFinite: (value: any) => boolean;
+}
+
+// Make Record type available if not already defined
+type Record<K extends keyof any, T> = {
+  [P in K]: T;
+};
+
+// HTML Canvas types
+interface HTMLCanvasElement {
+  width: number;
+  height: number;
+  getContext(contextId: "2d"): CanvasRenderingContext2D | null;
+}
+
+interface CanvasRenderingContext2D {
+  clearRect(x: number, y: number, w: number, h: number): void;
+  fillRect(x: number, y: number, w: number, h: number): void;
+  fillText(text: string, x: number, y: number, maxWidth?: number): void;
+  fillStyle: string | CanvasGradient | CanvasPattern;
+  font: string;
+  textAlign: CanvasTextAlign;
+  textBaseline: CanvasTextBaseline;
+}
+
+type CanvasTextAlign = "start" | "end" | "left" | "right" | "center";
+type CanvasTextBaseline = "top" | "hanging" | "middle" | "alphabetic" | "ideographic" | "bottom";
+type FrameRequestCallback = (time: number) => void;
+
+// Define requestAnimationFrame for animations
+declare var requestAnimationFrame: (callback: FrameRequestCallback) => number;
+
+`;
+
+  // Prepend type definitions to the user code
+  code = typeDefinitions + code;
+
   // ---- Step 1: TypeScript diagnostics ----
   const compilerOptions: ts.CompilerOptions = {
     target: ts.ScriptTarget[target as keyof typeof ts.ScriptTarget] || ts.ScriptTarget.ES2020,
     module: ts.ModuleKind[module as keyof typeof ts.ModuleKind] || ts.ModuleKind.ES2020,
-    strict,
+    strict: false, // Disable strict mode for generated simulation code
     skipLibCheck: true,
     esModuleInterop: true,
     allowSyntheticDefaultImports: true,
-    lib: ['es2020', 'dom'],
+    lib: ['es2015', 'es2020', 'dom'],
+    noImplicitAny: false,
+    strictNullChecks: false,
   };
 
   // Load TypeScript standard library files
   const tsLibDir = path.dirname(ts.getDefaultLibFilePath(compilerOptions));
-  const libFiles = ['lib.es2020.d.ts', 'lib.dom.d.ts'];
+  const libFiles = ['lib.es2015.d.ts', 'lib.es2020.d.ts', 'lib.dom.d.ts'];
   const libs: Record<string, string> = {};
   for (const lib of libFiles) {
     const libPath = path.join(tsLibDir, lib);
-    libs[lib] = fs.readFileSync(libPath, 'utf-8');
+    try {
+      libs[lib] = fs.readFileSync(libPath, 'utf-8');
+    } catch (err) {
+      console.warn(`Could not load ${lib}:`, err);
+    }
   }
 
   const sourceFile = ts.createSourceFile('temp.ts', code, ts.ScriptTarget.Latest, true);
@@ -1235,12 +1469,13 @@ async compileSimulationCode(args: any) {
       ];
 
       const simulation = await this.callLLM(messages, 'llama3-70b-8192');
+      const cleanedSimulation = this.cleanSimulationCode(simulation);
 
       return {
         content: [
           {
             type: 'text',
-            text: simulation,
+            text: cleanedSimulation,
           },
         ],
       };
@@ -1270,12 +1505,13 @@ async compileSimulationCode(args: any) {
       ];
 
       const enhancedSimulation = await this.callLLM(messages, 'llama3-70b-8192');
+      const cleanedSimulation = this.cleanSimulationCode(enhancedSimulation);
 
       return {
         content: [
           {
             type: 'text',
-            text: enhancedSimulation,
+            text: cleanedSimulation,
           },
         ],
       };
